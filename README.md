@@ -1,7 +1,7 @@
 # Mockify-Analytics
 
 ## Структура
-/app
+/app<br />
 ├── /static                # Статические файлы (frontend)
 │   ├── /js                # JavaScript файлы
 │   ├── /img               # Изображения
