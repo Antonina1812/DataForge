@@ -11,6 +11,6 @@ app = Flask(__name__)
 app.config.from_object('config.Config') # Загружаем конфигурацию из config.py
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-csrf = CSRFProtect(app)
+csrf = CSRFProtect(app) # Эта строчка нужна для безопасности, с ней ничего делать не нужно
 
 from app import models, routes # Импортируем модели и маршруты после инициализации db

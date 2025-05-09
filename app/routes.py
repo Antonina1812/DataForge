@@ -76,7 +76,7 @@ def upload():
 
             #Здесь можно добавить вызов функции для определения схемы
             #json_schema =  autodetect_json_schema(data)
-            #is_valid = validate_json_schema(data, json_schema) # Позже реализуем валидацию
+            #is_valid = validate_json_schema(data, json_schema)
 
             is_valid = True # пока не пишем валидацию
             if is_valid:
