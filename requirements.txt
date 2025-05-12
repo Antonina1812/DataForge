@@ -4,3 +4,6 @@ Flask-Migrate
 Flask-WTF
 passlib
 python-dotenv
+psycopg2
+flask_login
+jsonschema
