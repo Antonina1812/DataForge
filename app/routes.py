@@ -99,6 +99,48 @@ def upload():
 
     return render_template('upload.html', form=form)
 
+@app.route('/moc_generator', methods=['GET', 'POST'])
+@login_required
+def moc_generator():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            count = int(data.get('count', 0))
+            fields = data.get('fields', [])
+
+            # Validate the fields structure
+            if not isinstance(fields, list):
+                return {"error": "Invalid fields format."}, 400
+
+            # Generate mock objects (placeholder logic)
+            mock_objects = []
+            for _ in range(count):
+                mock_object = {}
+                for field in fields:
+                    field_name = field.get('fieldName')
+                    field_type = field.get('fieldType')
+                    # Placeholder: Generate mock data based on field type
+                    if field_type == 'string':
+                        mock_object[field_name] = "example_string"
+                    elif field_type == 'number':
+                        mock_object[field_name] = 123
+                    elif field_type == 'boolean':
+                        mock_object[field_name] = True
+                    elif field_type == 'object':
+                        mock_object[field_name] = {}
+                    elif field_type == 'array':
+                        mock_object[field_name] = []
+                    elif field_type == 'date':
+                        mock_object[field_name] = "2025-05-30"
+                mock_objects.append(mock_object)
+
+            return {"mockObjects": mock_objects}, 200
+
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+    return render_template('moc_generator.html')
+
 def validate_json_schema(data, schema):
     pass
 

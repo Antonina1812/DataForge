@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Генерация Mock{% endblock %}
+{% block content %}
+<h1>Генерация Mock объектов</h1>
+<form id="mockForm">
+    <div class="form-group">
+        <label for="count">Количество объектов</label>
+        <input type="number" id="count" name="count" class="form-control" required>
+    </div>
+    <div id="fieldsContainer">
+        <h3>Поля</h3>
+        <button type="button" class="btn btn-secondary" onclick="addField()">Добавить поле</button>
+    </div>
+    <button type="submit" class="btn btn-primary">Сгенерировать</button>
+</form>
+
+<script src="{{ url_for('static', filename='js/moc_generator.js') }}"></script>
+{% endblock %}
