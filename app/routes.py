@@ -99,9 +99,9 @@ def upload():
 
     return render_template('upload.html', form=form)
 
-@app.route('/moc_generator', methods=['GET', 'POST'])
+@app.route('/mock_generator', methods=['GET', 'POST'])
 @login_required
-def moc_generator():
+def mock_generator():
     print("hello")
     if request.method == 'POST':
         try:
@@ -140,7 +140,7 @@ def moc_generator():
         except Exception as e:
             return {"error": str(e)}, 500
 
-    return render_template('moc_generator.html')
+    return render_template('mock_generator.html')
 
 def validate_json_schema(data, schema):
     pass
