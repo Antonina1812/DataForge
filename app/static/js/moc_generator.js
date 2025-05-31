@@ -1,64 +1,113 @@
-let fieldIndex = 0;
+document.addEventListener('DOMContentLoaded', function() {
+    const fieldTypeSelect = document.getElementById('fieldTypeSelect');
+    const constraintsDivs = {
+        string: document.getElementById('stringConstraints'),
+        number: document.getElementById('numberConstraints'),
+        boolean: document.getElementById('booleanConstraints'),
+        array: document.getElementById('arrayConstraints'),
+        date: document.getElementById('dateConstraints')
+    };
 
-function addField() {
-    const container = document.getElementById('fieldsContainer');
-    const fieldDiv = document.createElement('div');
-    fieldDiv.classList.add('field');
-    fieldDiv.innerHTML = `
-        <div class="form-group">
-            <label for="fieldName_${fieldIndex}">Имя поля</label>
-            <input type="text" id="fieldName_${fieldIndex}" name="fields[${fieldIndex}][fieldName]" class="form-control" required>
-        </div>
-        <div class="form-group">
-            <label for="fieldType_${fieldIndex}">Тип поля</label>
-            <select id="fieldType_${fieldIndex}" name="fields[${fieldIndex}][fieldType]" class="form-control" required>
-                <option value="string">string</option>
-                <option value="number">number</option>
-                <option value="boolean">boolean</option>
-                <option value="object">object</option>
-                <option value="array">array</option>
-                <option value="date">date</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="description_${fieldIndex}">Описание</label>
-            <input type="text" id="description_${fieldIndex}" name="fields[${fieldIndex}][description]" class="form-control">
-        </div>
-        <button type="button" class="btn btn-danger" onclick="removeField(this)">Удалить поле</button>
-        <hr>
-    `;
-    container.appendChild(fieldDiv);
-    fieldIndex++;
-}
+    function updateConstraints() {
+        const selectedType = fieldTypeSelect.value;
+        for (const type in constraintsDivs) {
+            constraintsDivs[type].style.display = (type === selectedType) ? 'block' : 'none';
+        }
+    }
 
-function removeField(button) {
-    button.parentElement.remove();
-}
+    fieldTypeSelect.addEventListener('change', updateConstraints);
+    updateConstraints();
 
-document.getElementById('mockForm').addEventListener('submit', async function(event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    const json = Object.fromEntries(formData.entries());
-    json.fields = Array.from(document.querySelectorAll('.field')).map(field => {
-        const fieldName = field.querySelector('[name$="[fieldName]"]').value;
-        const fieldType = field.querySelector('[name$="[fieldType]"]').value;
-        const description = field.querySelector('[name$="[description]"]').value;
-        return { fieldName, fieldType, description };
+    document.getElementById('submitButton').addEventListener('click', function() {
+        const fieldData = collectFieldData();
+        const jsonData = {
+            count: 1,
+            fields: [fieldData]
+        };
+
+        fetch("/moc_generator", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        })
+        .then(response => response.json())
+        .then(data => console.log(data))
+        .catch(error => console.error('Error:', error));
     });
 
-    const response = await fetch("/moc_generator", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(json),
-    });
+    function collectFieldData() {
+        const fieldName = document.getElementById('fieldName').value;
+        const fieldType = document.getElementById('fieldTypeSelect').value;
+        let constraints = {};
 
-    if (response.ok) {
-        const result = await response.json();
-        alert('Mock объекты успешно сгенерированы!');
-        console.log(result);
-    } else {
-        alert('Ошибка при генерации Mock объектов.');
+        if (fieldType === 'string') {
+            constraints = {
+                minLength: document.getElementById('minLength').value || null,
+                maxLength: document.getElementById('maxLength').value || null,
+                minimum: null,
+                maximum: null,
+                pattern: document.getElementById('pattern').value || null,
+                enum: document.getElementById('enumString').value ? document.getElementById('enumString').value.split(',') : null,
+                items: null,
+                dateFormat: null
+            };
+        } else if (fieldType === 'number') {
+            constraints = {
+                minLength: null,
+                maxLength: null,
+                minimum: document.getElementById('minimumNumber').value || null,
+                maximum: document.getElementById('maximumNumber').value || null,
+                pattern: null,
+                enum: document.getElementById('enumNumber').value ? document.getElementById('enumNumber').value.split(',') : null,
+                items: null,
+                dateFormat: null
+            };
+        } else if (fieldType === 'boolean') {
+            constraints = {
+                minLength: null,
+                maxLength: null,
+                minimum: null,
+                maximum: null,
+                pattern: null,
+                enum: null,
+                items: null,
+                dateFormat: null
+            };
+        } else if (fieldType === 'array') {
+            const itemsProperties = document.getElementById('itemsProperties').value;
+            constraints = {
+                minLength: null,
+                maxLength: null,
+                minimum: null,
+                maximum: null,
+                pattern: null,
+                enum: document.getElementById('enumArray').value ? document.getElementById('enumArray').value.split(',') : null,
+                items: {
+                    type: document.getElementById('itemsType').value,
+                    properties: itemsProperties ? JSON.parse(itemsProperties) : null
+                },
+                dateFormat: null
+            };
+        } else if (fieldType === 'date') {
+            constraints = {
+                minLength: null,
+                maxLength: null,
+                minimum: document.getElementById('minimumDate').value || null,
+                maximum: document.getElementById('maximumDate').value || null,
+                pattern: null,
+                enum: null,
+                items: null,
+                dateFormat: document.getElementById('dateFormat').value || null
+            };
+        }
+
+        return {
+            fieldName: fieldName,
+            fieldType: fieldType,
+            constraints: constraints,
+            description: document.getElementById(`description${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`).value || null
+        };
     }
 });

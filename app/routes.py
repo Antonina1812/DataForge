@@ -102,6 +102,7 @@ def upload():
 @app.route('/moc_generator', methods=['GET', 'POST'])
 @login_required
 def moc_generator():
+    print("hello")
     if request.method == 'POST':
         try:
             data = request.get_json()
