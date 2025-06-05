@@ -12,5 +12,6 @@ app.config.from_object('config.Config') # Загружаем конфигура�
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 csrf = CSRFProtect(app) # Эта строчка нужна для безопасности, с ней ничего делать не нужно
+csrf._exempt_views.add('dash.dash.dispatch')
 
 from app import models, routes # Импортируем модели и маршруты после инициализации db

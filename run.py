@@ -3,5 +3,7 @@ from app.models import User, Dataset # Импортируем модели дл�
 
 if __name__ == '__main__':
     with app.app_context():  # Создаем контекст приложения Flask
-        db.create_all()  # Создаем таблицы в базе данных
+        from app.dashboard import create_dash_app
+        dash_app = create_dash_app(app)
+
     app.run(debug=True)
