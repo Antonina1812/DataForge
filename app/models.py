@@ -26,6 +26,7 @@ class Dataset(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    #data_type = db.Column(db.String(50), default='json')
 
     def __repr__(self):
         return f'<Dataset {self.filename}>'

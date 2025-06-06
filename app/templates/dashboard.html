@@ -15,3 +15,36 @@
         <p>Вы пока не загрузили ни одного файла.</p>
     {% endif %}
 {% endblock %}
+
+<!-- {% extends "base.html" %}
+
+{% block title %}Личный кабинет{% endblock %}
+
+{% block content %}
+<h1>Личный кабинет</h1>
+<p>Добро пожаловать, {{ current_user.username }}!</p>
+
+<div class="d-flex gap-2 mb-4">
+    <a href="{{ url_for('upload') }}" class="btn btn-success">Загрузить новый файл</a>
+    <a href="{{ url_for('mock_generator') }}" class="btn btn-primary">Генерация mock</a>
+</div>
+
+<h2>Мои файлы:</h2>
+{% if datasets %}
+<div class="list-group">
+    {% for dataset in datasets %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <strong>{{ dataset.filename }}</strong>
+            <div class="text-muted">Загружен: {{ dataset.upload_date.strftime('%Y-%m-%d %H:%M') }}</div>
+        </div>
+        <a href="{{ url_for('download_mock', data=dataset.filename) }}" class="btn btn-sm btn-outline-primary">
+            Скачать
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>Вы пока не загрузили ни одного файла.</p>
+{% endif %}
+{% endblock %} -->

@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, send_from_directory
+from flask import render_template, redirect, url_for, flash, request, make_response
 from app import app, db
 from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
@@ -8,6 +8,8 @@ import json
 from werkzeug.utils import secure_filename
 from app.utils import validate_json_schema  # надо дописать
 from passlib.hash import sha256_crypt
+from datetime import datetime
+import random
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -102,48 +104,128 @@ def upload():
 @app.route('/mock_generator', methods=['GET', 'POST'])
 @login_required
 def mock_generator():
-    print("hello")
     if request.method == 'POST':
         try:
             data = request.get_json()
-            count = int(data.get('count', 0))
+            if not data:
+                return {"error": "No data provided"}, 400
+                
+            count = int(data.get('count', 1))  # По умолчанию 1 объект
             fields = data.get('fields', [])
-
-            # Validate the fields structure
+            
             if not isinstance(fields, list):
-                return {"error": "Invalid fields format."}, 400
+                return {"error": "Fields should be an array"}, 400
 
-            # Generate mock objects (placeholder logic)
             mock_objects = []
             for _ in range(count):
                 mock_object = {}
                 for field in fields:
+                    if not isinstance(field, dict):
+                        continue
+                        
                     field_name = field.get('fieldName')
-                    field_type = field.get('fieldType')
-                    # Placeholder: Generate mock data based on field type
-                    if field_type == 'string':
-                        mock_object[field_name] = "example_string"
-                    elif field_type == 'number':
-                        mock_object[field_name] = 123
-                    elif field_type == 'boolean':
-                        mock_object[field_name] = True
-                    elif field_type == 'object':
-                        mock_object[field_name] = {}
-                    elif field_type == 'array':
-                        mock_object[field_name] = []
-                    elif field_type == 'date':
-                        mock_object[field_name] = "2025-05-30"
-                mock_objects.append(mock_object)
-
-            return {"mockObjects": mock_objects}, 200
-
+                    if not field_name:
+                        continue
+                        
+                    field_type = field.get('fieldType', 'string')
+                    constraints = field.get('constraints', {}) or {}
+                    
+                    try:
+                        if field_type == 'string':
+                            mock_object[field_name] = generate_string(constraints)
+                        elif field_type == 'number':
+                            mock_object[field_name] = generate_number(constraints)
+                        elif field_type == 'boolean':
+                            mock_object[field_name] = True
+                        elif field_type == 'array':
+                            mock_object[field_name] = generate_array(constraints)
+                        elif field_type == 'date':
+                            mock_object[field_name] = datetime.now().strftime('%Y-%m-%d')
+                    except Exception as e:
+                        print(f"Error generating field {field_name}: {str(e)}")
+                        mock_object[field_name] = None
+                
+                if mock_object:  # Добавляем только если есть данные
+                    mock_objects.append(mock_object)
+            
+            if not mock_objects:
+                return {"error": "No valid fields to generate"}, 400
+            
+            # Сохраняем в базу данных
+            filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
+            
+            dataset = Dataset(filename=filename, user_id=current_user.id)
+            db.session.add(dataset)
+            db.session.commit()
+            
+            # Сохраняем файл на сервере
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(mock_data)
+            
+            return {"success": True, "mockData": mock_data}
+        
         except Exception as e:
+            print(f"Error in mock_generator: {str(e)}")
             return {"error": str(e)}, 500
-
+    
     return render_template('mock_generator.html')
 
-def validate_json_schema(data, schema):
-    pass
+@app.route('/mock_result')
+@login_required
+def mock_result():
+    mock_data = request.args.get('data')
+    if not mock_data:
+        flash('Нет данных для отображения', 'warning')
+        return redirect(url_for('mock_generator'))
+    
+    return render_template('mock_result.html', mock_data=mock_data)
 
-def autodetect_json_schema(data):
-    pass
+@app.route('/download_mock')
+@login_required
+def download_mock():
+    mock_data = request.args.get('data')
+    if not mock_data:
+        flash('Нет данных для скачивания', 'warning')
+        return redirect(url_for('mock_generator'))
+    
+    response = make_response(mock_data)
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = 'attachment; filename=mock_data.json'
+    return response
+
+def generate_string(constraints):
+    if constraints.get('enum'):
+        enum_values = [v.strip() for v in constraints['enum'].split(',') if v.strip()]
+        if enum_values:
+            return random.choice(enum_values)
+    
+    min_len = max(0, int(constraints.get('minLength', 5)))
+    max_len = max(min_len, int(constraints.get('maxLength', 10)))
+    length = random.randint(min_len, max_len)
+    chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    return ''.join(random.choices(chars, k=length))
+
+def generate_number(constraints):
+    if constraints.get('enum'):
+        enum_values = [float(v.strip()) for v in constraints['enum'].split(',') if v.strip()]
+        if enum_values:
+            return random.choice(enum_values)
+    
+    minimum = float(constraints.get('minimum', 0))
+    maximum = float(constraints.get('maximum', 100))
+    return round(random.uniform(minimum, maximum), 2)
+
+def generate_array(constraints):
+    items_type = constraints.get('items', {}).get('type', 'string')
+    return [generate_simple_value(items_type) for _ in range(random.randint(1, 5))]
+
+def generate_simple_value(field_type):
+    if field_type == 'string':
+        return ''.join(random.choices('abcde', k=5))
+    elif field_type == 'number':
+        return random.randint(1, 100)
+    elif field_type == 'boolean':
+        return random.choice([True, False])
+    return None

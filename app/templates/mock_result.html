@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Результат генерации mock-объектов{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Сгенерированные mock-объекты</h2>
+    
+    <div class="d-flex justify-content-between mb-3">
+        <a href="{{ url_for('download_mock', data=mock_data) }}" class="btn btn-success">
+            Скачать как JSON
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+            Вернуться в личный кабинет
+        </a>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <pre>{{ mock_data }}</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}

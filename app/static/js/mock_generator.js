@@ -215,36 +215,42 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // 9. При клике «Отправить» собираем данные и выводим в консоль
-submitButton.addEventListener('click', function () {
-  const mockCount = document.getElementById('mockCount').value;
-  const fields = collectFieldsData();
-  const jsonData = { count: parseInt(mockCount, 10), fields: fields };
+  submitButton.addEventListener('click', function () {
+    const mockCount = document.getElementById('mockCount').value;
+    const fields = collectFieldsData();
+    if (!fields || fields.length === 0) {
+      alert('Пожалуйста, добавьте хотя бы одно поле');
+      return;
+    }
+    const jsonData = { count: parseInt(mockCount, 10), fields: fields };
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
-  // Получение CSRF-токена из скрытого поля формы
-  const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-
-  // Отправка данных на сервер
-  fetch('/mock_generator', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': csrfToken, // Добавляем CSRF-токен в заголовки
-    },
-    body: JSON.stringify(jsonData),
-  })
-    .then((response) => {
+    fetch('/mock_generator', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify(jsonData),
+    })
+    .then(async (response) => {
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error('Ошибка при отправке данных');
+          throw new Error(data.error || 'Ошибка сервера');
       }
-      return response.json();
+        return data;
     })
     .then((data) => {
-      console.log('Ответ сервера:', data);
-      alert('Данные успешно отправлены!');
+        if (data.success) {
+            const encodedData = encodeURIComponent(data.mockData);
+            window.location.href = `/mock_result?data=${encodedData}`;
+        } else {
+            alert(data.error || "Ошибка при генерации mock-объектов.");
+        }
     })
     .catch((error) => {
-      console.error('Ошибка:', error);
-      alert('Произошла ошибка при отправке данных.');
+        console.error('Ошибка:', error);
+        alert(error.message || 'Произошла ошибка при отправке данных.');
     });
-});
+  });
 });
