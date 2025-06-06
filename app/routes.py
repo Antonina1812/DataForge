@@ -61,6 +61,34 @@ def dashboard():
     datasets = Dataset.query.filter_by(user_id=current_user.id).all()
     return render_template('dashboard.html', datasets=datasets)
 
+@app.route('/delete_file/<int:file_id>', methods=['POST'])
+@login_required
+def delete_file(file_id):
+    try:
+        # Находим файл в базе данных
+        dataset = Dataset.query.get_or_404(file_id)
+        
+        # Проверяем, что файл принадлежит текущему пользователю
+        if dataset.user_id != current_user.id:
+            flash('У вас нет прав для удаления этого файла', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        # Удаляем файл с сервера
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], dataset.filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        
+        # Удаляем запись из базы данных
+        db.session.delete(dataset)
+        db.session.commit()
+        
+        flash('Файл успешно удален', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Произошла ошибка при удалении файла', 'danger')
+    
+    return redirect(url_for('dashboard'))
+
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
