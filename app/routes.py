@@ -1,15 +1,13 @@
-from flask import render_template, redirect, url_for, flash, request, make_response
+from flask import render_template, redirect, url_for, flash, request, make_response, current_app
 from app import app, db
 from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-import os
-import json
 from werkzeug.utils import secure_filename
 from app.utils import validate_json_schema  # надо дописать
 from passlib.hash import sha256_crypt
 from datetime import datetime
-import random
+import random, requests, json, os
 
 login_manager = LoginManager()
 login_manager.init_app(app)
