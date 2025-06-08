@@ -9,15 +9,26 @@ pio.templates.default = "plotly_dark"
 def _controls_body() -> html.Div:
     return html.Div(
         [
-            html.H5("Панель графиков"),
+            html.H5("GraphPanel"),
             html.Hr(),
-            dcc.Upload(
-                id="upload-data",
-                children=dbc.Button("📂 Upload", color="secondary"),
-                multiple=False,
-                className="mb-3",
-            ),
-            dbc.Label("Тип графика"),
+            
+            dbc.Label("Choose file"),
+            dbc.InputGroup([
+                dcc.Dropdown(
+                    id="file-selector",
+                    placeholder="Select...",
+                    className="mb-2",
+                ),
+                dbc.Button(
+                    "🔄", 
+                    id="refresh-files", 
+                    color="secondary", 
+                    outline=True,
+                    title="Refresh"
+                ),
+            ], className="mb-3"),
+            
+            dbc.Label("Graph Type"),
             dcc.Dropdown(
                 id="chart-type",
                 options=[
@@ -31,9 +42,9 @@ def _controls_body() -> html.Div:
                 value="line",
                 className="mb-2",
             ),
-            dbc.Label("Ось X"),
+            dbc.Label("Axis X"),
             dcc.Dropdown(id="x-column", className="mb-2"),
-            dbc.Label("Ось Y"),
+            dbc.Label("Axis Y"),
             dcc.Dropdown(id="y-column", className="mb-3"),
             dbc.Button("➕ Add", id="add-chart", n_clicks=0, color="success"),
             html.Hr(),
@@ -43,23 +54,17 @@ def _controls_body() -> html.Div:
     )
 
 def make_layout() -> html.Div:
-    board = dg.GridLayout(
+    board = dg.ResponsiveGridLayout(
         id="board",
         children=[],
-        ncols=70,
-        height=50,
-        width=3000,
-        layout=[],
-        compactType=None,
-        isDraggable=True,
-        isResizable=True,
-        preventCollision=False,
-        isBounded=False,
-        verticalCompact=False,
+        layouts={"lg": [], "md": [], "sm": [], "xs": []},
+        breakpoints={"lg": 1200, "md": 996, "sm": 768, "xs": 480},
+        gridCols={"lg": 12, "md": 10, "sm": 6, "xs": 4},
+        height=60,
+        resizeHandles=['se', 's', 'e', 'sw', 'w', 'nw'],
         style={
-            "transform": "scale(1)",
-            "minHeight": "700px",
-            "minWidth": "700px",
+            "minHeight": "calc(100vh - 120px)",
+            "width": "100%",
         },
     )
 
@@ -70,7 +75,7 @@ def make_layout() -> html.Div:
             dbc.Button(
                 "☰", id="controls-toggle", size="lg",
                 style={
-                    "position": "fixed", "top": "12px", "left": "12px",
+                    "position": "fixed", "top": "15px", "left": "12px",
                     "zIndex": 1050
                 },
                 color="secondary",
@@ -87,25 +92,18 @@ def make_layout() -> html.Div:
             ),
 
             html.Div(
-                html.Div(
-                    board,
-                    id="board-container",
-                    style={
-                        "width": "3000px",
-                        "height": "3000px",
-                        "position": "relative",
-                    },
-                ),
+                board,
                 id="board-wrapper",
                 style={
-                    "height": "100vh",
-                    "overflow": "scroll",
-                    "cursor": "grab",
-                    "padding": "60px 20px 20px 20px",
+                    "paddingTop": "80px",
+                    "paddingLeft": "20px",
+                    "paddingRight": "20px",
+                    "paddingBottom": "20px",
+                    "minHeight": "100vh",
+                    "width": "100%",
                 },
             ),
 
             dcc.Store(id="stored-data"),
-            dcc.Store(id="stored-layout", data=[]),
         ]
     )
