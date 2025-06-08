@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from app.utils import validate_json_schema  # надо дописать
 from passlib.hash import sha256_crypt
 from datetime import datetime
-import random, requests, json, os
+import random, requests, json, os, openai
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -115,14 +115,11 @@ def check_files():
 def download_file(filename):
     """Безопасное скачивание файла"""
     try:
-        # Защищаем имя файла
         safe_filename = secure_filename(filename)
         if not safe_filename:
             raise ValueError("Недопустимое имя файла")
             
         upload_folder = current_app.config['UPLOAD_FOLDER']
-        
-        # Полный путь с защитой от directory traversal
         file_path = os.path.join(upload_folder, safe_filename)
         
         # Дополнительная проверка безопасности пути
@@ -190,76 +187,76 @@ def upload():
 
     return render_template('upload.html', form=form)
 
-@app.route('/mock_generator', methods=['GET', 'POST'])
-@login_required
-def mock_generator():
-    if request.method == 'POST':
-        try:
-            data = request.get_json()
-            if not data:
-                return {"error": "No data provided"}, 400
+# @app.route('/mock_generator', methods=['GET', 'POST'])
+# @login_required
+# def mock_generator():
+#     if request.method == 'POST':
+#         try:
+#             data = request.get_json()
+#             if not data:
+#                 return {"error": "No data provided"}, 400
                 
-            count = int(data.get('count', 1))  # По умолчанию 1 объект
-            fields = data.get('fields', [])
+#             count = int(data.get('count', 1))  # По умолчанию 1 объект
+#             fields = data.get('fields', [])
             
-            if not isinstance(fields, list):
-                return {"error": "Fields should be an array"}, 400
+#             if not isinstance(fields, list):
+#                 return {"error": "Fields should be an array"}, 400
 
-            mock_objects = []
-            for _ in range(count):
-                mock_object = {}
-                for field in fields:
-                    if not isinstance(field, dict):
-                        continue
+#             mock_objects = []
+#             for _ in range(count):
+#                 mock_object = {}
+#                 for field in fields:
+#                     if not isinstance(field, dict):
+#                         continue
                         
-                    field_name = field.get('fieldName')
-                    if not field_name:
-                        continue
+#                     field_name = field.get('fieldName')
+#                     if not field_name:
+#                         continue
                         
-                    field_type = field.get('fieldType', 'string')
-                    constraints = field.get('constraints', {}) or {}
+#                     field_type = field.get('fieldType', 'string')
+#                     constraints = field.get('constraints', {}) or {}
                     
-                    try:
-                        if field_type == 'string':
-                            mock_object[field_name] = generate_string(constraints)
-                        elif field_type == 'number':
-                            mock_object[field_name] = generate_number(constraints)
-                        elif field_type == 'boolean':
-                            mock_object[field_name] = True
-                        elif field_type == 'array':
-                            mock_object[field_name] = generate_array(constraints)
-                        elif field_type == 'date':
-                            mock_object[field_name] = datetime.now().strftime('%Y-%m-%d')
-                    except Exception as e:
-                        print(f"Error generating field {field_name}: {str(e)}")
-                        mock_object[field_name] = None
+#                     try:
+#                         if field_type == 'string':
+#                             mock_object[field_name] = generate_string(constraints)
+#                         elif field_type == 'number':
+#                             mock_object[field_name] = generate_number(constraints)
+#                         elif field_type == 'boolean':
+#                             mock_object[field_name] = True
+#                         elif field_type == 'array':
+#                             mock_object[field_name] = generate_array(constraints)
+#                         elif field_type == 'date':
+#                             mock_object[field_name] = datetime.now().strftime('%Y-%m-%d')
+#                     except Exception as e:
+#                         print(f"Error generating field {field_name}: {str(e)}")
+#                         mock_object[field_name] = None
                 
-                if mock_object:  # Добавляем только если есть данные
-                    mock_objects.append(mock_object)
+#                 if mock_object:  # Добавляем только если есть данные
+#                     mock_objects.append(mock_object)
             
-            if not mock_objects:
-                return {"error": "No valid fields to generate"}, 400
+#             if not mock_objects:
+#                 return {"error": "No valid fields to generate"}, 400
             
-            # Сохраняем в базу данных
-            filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
+#             # Сохраняем в базу данных
+#             filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+#             mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
             
-            dataset = Dataset(filename=filename, user_id=current_user.id)
-            db.session.add(dataset)
-            db.session.commit()
+#             dataset = Dataset(filename=filename, user_id=current_user.id)
+#             db.session.add(dataset)
+#             db.session.commit()
             
-            # Сохраняем файл на сервере
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(mock_data)
+#             # Сохраняем файл на сервере
+#             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+#             with open(filepath, 'w', encoding='utf-8') as f:
+#                 f.write(mock_data)
             
-            return {"success": True, "mockData": mock_data}
+#             return {"success": True, "mockData": mock_data}
         
-        except Exception as e:
-            print(f"Error in mock_generator: {str(e)}")
-            return {"error": str(e)}, 500
+#         except Exception as e:
+#             print(f"Error in mock_generator: {str(e)}")
+#             return {"error": str(e)}, 500
     
-    return render_template('mock_generator.html')
+#     return render_template('mock_generator.html')
 
 @app.route('/mock_result')
 @login_required
@@ -335,61 +332,139 @@ def delete_file(file_id):
         flash('Произошла ошибка при удалении файла', 'danger')
     
     return redirect(url_for('dashboard'))
-    
-# @app.route('/mock_result')
-# @login_required
-# def mock_result():
-#     mock_data = request.args.get('data')
-#     if not mock_data:
-#         flash('Нет данных для отображения', 'warning')
-#         return redirect(url_for('mock_generator'))
-    
-#     return render_template('mock_result.html', mock_data=mock_data)
 
-# @app.route('/download_mock')
-# @login_required
-# def download_mock():
-#     mock_data = request.args.get('data')
-#     if not mock_data:
-#         flash('Нет данных для скачивания', 'warning')
-#         return redirect(url_for('mock_generator'))
+# def generate_string(constraints):
+#     if constraints.get('enum'):
+#         enum_values = [v.strip() for v in constraints['enum'].split(',') if v.strip()]
+#         if enum_values:
+#             return random.choice(enum_values)
     
-#     response = make_response(mock_data)
-#     response.headers['Content-Type'] = 'application/json'
-#     response.headers['Content-Disposition'] = 'attachment; filename=mock_data.json'
-#     return response
+#     min_len = max(0, int(constraints.get('minLength', 5)))
+#     max_len = max(min_len, int(constraints.get('maxLength', 10)))
+#     length = random.randint(min_len, max_len)
+#     chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+#     return ''.join(random.choices(chars, k=length))
 
+# def generate_number(constraints):
+#     if constraints.get('enum'):
+#         enum_values = [float(v.strip()) for v in constraints['enum'].split(',') if v.strip()]
+#         if enum_values:
+#             return random.choice(enum_values)
+    
+#     minimum = float(constraints.get('minimum', 0))
+#     maximum = float(constraints.get('maximum', 100))
+#     return round(random.uniform(minimum, maximum), 2)
+
+# def generate_array(constraints):
+#     items_type = constraints.get('items', {}).get('type', 'string')
+#     return [generate_simple_value(items_type) for _ in range(random.randint(1, 5))]
+
+# def generate_simple_value(field_type):
+#     if field_type == 'string':
+#         return ''.join(random.choices('abcde', k=5))
+#     elif field_type == 'number':
+#         return random.randint(1, 100)
+#     elif field_type == 'boolean':
+#         return random.choice([True, False])
+#     return None
+
+@app.route('/mock_generator', methods=['GET', 'POST'])
+@login_required
+def mock_generator():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            count = int(data.get('count', 1))
+            fields = data.get('fields', [])
+
+            # Настройка клиента OpenAI для OpenRouter
+            openai.api_base = "https://openrouter.ai/api/v1"
+            openai.api_key = current_app.config['OPENROUTER_API_KEY']
+            
+            # Формируем промпт для ИИ
+            prompt = f"""
+            Сгенерируй {count} JSON-объектов со следующими полями:
+            {json.dumps(fields, indent=2)}
+            
+            Требования:
+            1. Все поля должны соответствовать указанным типам
+            2. Учитывай все constraints
+            3. Верни ТОЛЬКО JSON-массив без каких-либо пояснений
+            """
+
+            # Отправляем запрос
+            response = openai.ChatCompletion.create(
+                model="openai/gpt-4o",  # Экономная модель
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=4000,  # Явное ограничение
+                headers={
+                    "HTTP-Referer": request.host_url,
+                    "X-Title": "DataForge Mock Generator"
+                }
+            )
+            
+            # Извлекаем и валидируем ответ
+            generated_content = response.choices[0].message.content
+            mock_objects = json.loads(generated_content.strip())
+
+            # Сохранение результатов (как в предыдущем примере)
+            filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
+            
+            dataset = Dataset(
+                filename=filename,
+                user_id=current_user.id,
+                data_type='json',
+                source='openrouter-gpt4'
+            )
+            db.session.add(dataset)
+            db.session.commit()
+            
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(mock_data)
+            
+            return {"success": True, "mockData": mock_data}
+
+        except json.JSONDecodeError:
+            return {"error": "ИИ вернул некорректный JSON"}, 400
+        except Exception as e:
+            current_app.logger.error(f"OpenRouter error: {str(e)}")
+            return {"error": str(e)}, 500
+
+    return render_template('mock_generator.html')
+
+
+# Функции генерации для fallback (если API недоступно)
 def generate_string(constraints):
+    """Генерация строки с учетом ограничений"""
     if constraints.get('enum'):
-        enum_values = [v.strip() for v in constraints['enum'].split(',') if v.strip()]
-        if enum_values:
-            return random.choice(enum_values)
+        return random.choice([x.strip() for x in constraints['enum'].split(',')])
     
-    min_len = max(0, int(constraints.get('minLength', 5)))
-    max_len = max(min_len, int(constraints.get('maxLength', 10)))
-    length = random.randint(min_len, max_len)
-    chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    return ''.join(random.choices(chars, k=length))
+    length = random.randint(
+        int(constraints.get('minLength', 5)),
+        int(constraints.get('maxLength', 10))
+    )
+    return ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=length))
 
 def generate_number(constraints):
+    """Генерация числа с учетом ограничений"""
     if constraints.get('enum'):
-        enum_values = [float(v.strip()) for v in constraints['enum'].split(',') if v.strip()]
-        if enum_values:
-            return random.choice(enum_values)
+        return float(random.choice([x.strip() for x in constraints['enum'].split(',')]))
     
-    minimum = float(constraints.get('minimum', 0))
-    maximum = float(constraints.get('maximum', 100))
-    return round(random.uniform(minimum, maximum), 2)
+    return round(random.uniform(
+        float(constraints.get('minimum', 0)),
+        float(constraints.get('maximum', 100))), 
+        2
+    )
 
 def generate_array(constraints):
-    items_type = constraints.get('items', {}).get('type', 'string')
-    return [generate_simple_value(items_type) for _ in range(random.randint(1, 5))]
-
-def generate_simple_value(field_type):
-    if field_type == 'string':
-        return ''.join(random.choices('abcde', k=5))
-    elif field_type == 'number':
-        return random.randint(1, 100)
-    elif field_type == 'boolean':
-        return random.choice([True, False])
-    return None
+    """Генерация массива с учетом ограничений"""
+    size = random.randint(1, 5)
+    item_type = constraints.get('items', {}).get('type', 'string')
+    
+    if item_type == 'string':
+        return [generate_string({}) for _ in range(size)]
+    elif item_type == 'number':
+        return [generate_number({}) for _ in range(size)]
+    return []
