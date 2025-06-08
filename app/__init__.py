@@ -14,4 +14,11 @@ migrate = Migrate(app, db)
 csrf = CSRFProtect(app) # Эта строчка нужна для безопасности, с ней ничего делать не нужно
 csrf._exempt_views.add('dash.dash.dispatch')
 
+# Создаем папку для загрузок при старте приложения
+with app.app_context():
+    upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+        app.logger.info(f"Created upload directory: {upload_folder}")
+
 from app import models, routes # Импортируем модели и маршруты после инициализации db

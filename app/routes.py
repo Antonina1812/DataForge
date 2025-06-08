@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, make_response, current_app
+from flask import render_template, redirect, url_for, flash, request, make_response, current_app, send_from_directory, session, abort
 from app import app, db
 from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
@@ -12,6 +12,39 @@ import random, requests, json, os
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+def save_mock_data(mock_data):
+    """Безопасное сохранение mock-данных"""
+    try:
+        # Генерируем безопасное имя файла
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_filename = secure_filename(f"mock_{timestamp}.json")
+        
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        file_path = os.path.join(upload_folder, safe_filename)
+        
+        # Проверка безопасности пути
+        if not os.path.abspath(file_path).startswith(os.path.abspath(upload_folder)):
+            raise ValueError("Недопустимый путь к файлу")
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(mock_data)
+        
+        dataset = Dataset(
+            filename=safe_filename,
+            user_id=current_user.id,
+            upload_date=datetime.utcnow()
+        )
+        db.session.add(dataset)
+        db.session.commit()
+        
+        return safe_filename
+        
+    except Exception as e:
+        current_app.logger.error(f"Save error: {str(e)}")
+        raise
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -59,33 +92,63 @@ def dashboard():
     datasets = Dataset.query.filter_by(user_id=current_user.id).all()
     return render_template('dashboard.html', datasets=datasets)
 
-@app.route('/delete_file/<int:file_id>', methods=['POST'])
+@app.route('/check_files')
 @login_required
-def delete_file(file_id):
-    try:
-        # Находим файл в базе данных
-        dataset = Dataset.query.get_or_404(file_id)
-        
-        # Проверяем, что файл принадлежит текущему пользователю
-        if dataset.user_id != current_user.id:
-            flash('У вас нет прав для удаления этого файла', 'danger')
-            return redirect(url_for('dashboard'))
-        
-        # Удаляем файл с сервера
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], dataset.filename)
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        
-        # Удаляем запись из базы данных
-        db.session.delete(dataset)
-        db.session.commit()
-        
-        flash('Файл успешно удален', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash('Произошла ошибка при удалении файла', 'danger')
+def check_files():
+    """Страница для отладки - проверка файлов"""
+    files = []
+    upload_dir = current_app.config['UPLOAD_FOLDER']
     
-    return redirect(url_for('dashboard'))
+    # Физические файлы
+    if os.path.exists(upload_dir):
+        files.extend(os.listdir(upload_dir))
+    
+    # Файлы в БД
+    db_files = Dataset.query.filter_by(user_id=current_user.id).all()
+    
+    return render_template('check_files.html',
+                         physical_files=files,
+                         db_files=[f.filename for f in db_files])
+
+@app.route('/download/<filename>')
+@login_required
+def download_file(filename):
+    """Безопасное скачивание файла"""
+    try:
+        # Защищаем имя файла
+        safe_filename = secure_filename(filename)
+        if not safe_filename:
+            raise ValueError("Недопустимое имя файла")
+            
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        
+        # Полный путь с защитой от directory traversal
+        file_path = os.path.join(upload_folder, safe_filename)
+        
+        # Дополнительная проверка безопасности пути
+        if not os.path.abspath(file_path).startswith(os.path.abspath(upload_folder)):
+            raise ValueError("Попытка доступа к недопустимому пути")
+        
+        # Проверка существования файла
+        if not os.path.exists(file_path):
+            current_app.logger.error(f"File not found: {file_path}")
+            abort(404, description="Файл не найден")
+        
+        # Проверка принадлежности файла пользователю
+        dataset = Dataset.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
+        if not dataset:
+            abort(403, description="Доступ запрещен")
+        
+        return send_from_directory(
+            upload_folder,
+            safe_filename,
+            as_attachment=True,
+            mimetype='application/json'
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Download error: {str(e)}")
+        abort(500, description=str(e))
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
@@ -201,25 +264,100 @@ def mock_generator():
 @app.route('/mock_result')
 @login_required
 def mock_result():
+    """Страница с результатами генерации"""
     mock_data = request.args.get('data')
     if not mock_data:
         flash('Нет данных для отображения', 'warning')
         return redirect(url_for('mock_generator'))
     
+    # Сохраняем данные в сессии для скачивания
+    session['last_mock_data'] = mock_data
     return render_template('mock_result.html', mock_data=mock_data)
 
 @app.route('/download_mock')
 @login_required
 def download_mock():
-    mock_data = request.args.get('data')
-    if not mock_data:
+    """Скачивание последних сгенерированных данных"""
+    if 'last_mock_data' not in session:
         flash('Нет данных для скачивания', 'warning')
         return redirect(url_for('mock_generator'))
     
-    response = make_response(mock_data)
-    response.headers['Content-Type'] = 'application/json'
-    response.headers['Content-Disposition'] = 'attachment; filename=mock_data.json'
-    return response
+    try:
+        # Создаем временный файл
+        filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(session['last_mock_data'])
+        
+        # Сохраняем запись в БД
+        dataset = Dataset(filename=filename, user_id=current_user.id)
+        db.session.add(dataset)
+        db.session.commit()
+        
+        return send_from_directory(
+            current_app.config['UPLOAD_FOLDER'],
+            filename,
+            as_attachment=True,
+            mimetype='application/json'
+        )
+    except Exception as e:
+        current_app.logger.error(f"Download mock error: {str(e)}")
+        flash('Ошибка при создании файла', 'danger')
+        return redirect(url_for('mock_result'))
+    
+@app.route('/delete/<int:file_id>', methods=['POST'])
+@login_required
+def delete_file(file_id):
+    """Удаление файла"""
+    try:
+        # Находим файл в базе данных
+        dataset = Dataset.query.get_or_404(file_id)
+        
+        # Проверяем, что файл принадлежит текущему пользователю
+        if dataset.user_id != current_user.id:
+            flash('У вас нет прав для удаления этого файла', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        # Удаляем файл с сервера
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dataset.filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        
+        # Удаляем запись из базы данных
+        db.session.delete(dataset)
+        db.session.commit()
+        
+        flash('Файл успешно удален', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Ошибка при удалении файла: {str(e)}")
+        flash('Произошла ошибка при удалении файла', 'danger')
+    
+    return redirect(url_for('dashboard'))
+    
+# @app.route('/mock_result')
+# @login_required
+# def mock_result():
+#     mock_data = request.args.get('data')
+#     if not mock_data:
+#         flash('Нет данных для отображения', 'warning')
+#         return redirect(url_for('mock_generator'))
+    
+#     return render_template('mock_result.html', mock_data=mock_data)
+
+# @app.route('/download_mock')
+# @login_required
+# def download_mock():
+#     mock_data = request.args.get('data')
+#     if not mock_data:
+#         flash('Нет данных для скачивания', 'warning')
+#         return redirect(url_for('mock_generator'))
+    
+#     response = make_response(mock_data)
+#     response.headers['Content-Type'] = 'application/json'
+#     response.headers['Content-Disposition'] = 'attachment; filename=mock_data.json'
+#     return response
 
 def generate_string(constraints):
     if constraints.get('enum'):
