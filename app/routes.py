@@ -8,6 +8,7 @@ from app.utils import validate_json_schema  # надо дописать
 from passlib.hash import sha256_crypt
 from datetime import datetime
 import random, requests, json, os, openai
+import re
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -371,69 +372,149 @@ def delete_file(file_id):
 @app.route('/mock_generator', methods=['GET', 'POST'])
 @login_required
 def mock_generator():
-    if request.method == 'POST':
-        try:
-            data = request.get_json()
-            count = int(data.get('count', 1))
-            fields = data.get('fields', [])
+    # if request.method == 'POST':
+    #     try:
+    #         data = request.get_json()
+    #         count = int(data.get('count', 1))
+    #         fields = data.get('fields', [])
 
-            # Настройка клиента OpenAI для OpenRouter
-            openai.api_base = "https://openrouter.ai/api/v1"
-            openai.api_key = current_app.config['OPENROUTER_API_KEY']
+    #         # Настройка клиента OpenAI для OpenRouter
+    #         openai.api_base = "https://openrouter.ai/api/v1"
+    #         openai.api_key = current_app.config['OPENROUTER_API_KEY']
             
-            # Формируем промпт для ИИ
-            prompt = f"""
-            Сгенерируй {count} JSON-объектов со следующими полями:
-            {json.dumps(fields, indent=2)}
+    #         # Формируем промпт для ИИ
+    #         prompt = f"""
+    #         Сгенерируй {count} JSON-объектов со следующими полями:
+    #         {json.dumps(fields, indent=2)}
             
-            Требования:
-            1. Все поля должны соответствовать указанным типам
-            2. Учитывай все constraints
-            3. Верни ТОЛЬКО JSON-массив без каких-либо пояснений
-            """
+    #         Требования:
+    #         1. Все поля должны соответствовать указанным типам
+    #         2. Учитывай все constraints
+    #         3. Верни ТОЛЬКО JSON-массив без каких-либо пояснений
+    #         """
 
-            # Отправляем запрос
-            response = openai.ChatCompletion.create(
-                model="openai/gpt-4o",  # Экономная модель
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=4000,  # Явное ограничение
-                headers={
+    #         # Отправляем запрос
+    #         response = openai.ChatCompletion.create(
+    #             # model="openai/gpt-4o",  
+    #             model="anthropic/claude-3-haiku",# Экономная модель
+    #             messages=[{"role": "user", "content": prompt}],
+    #             max_tokens=4000,  # Явное ограничение
+    #             headers={
+    #                 "HTTP-Referer": request.host_url,
+    #                 "X-Title": "DataForge Mock Generator"
+    #             }
+    #         )
+            
+    #         # Извлекаем и валидируем ответ
+    #         generated_content = response.choices[0].message.content
+    #         mock_objects = json.loads(generated_content.strip())
+
+    #         # Сохранение результатов (как в предыдущем примере)
+    #         filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    #         mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
+            
+    #         dataset = Dataset(
+    #             filename=filename,
+    #             user_id=current_user.id,
+    #             data_type='json',
+    #             source='openrouter-gpt4'
+    #         )
+    #         db.session.add(dataset)
+    #         db.session.commit()
+            
+    #         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    #         with open(filepath, 'w', encoding='utf-8') as f:
+    #             f.write(mock_data)
+            
+    #         return {"success": True, "mockData": mock_data}
+
+    #     except json.JSONDecodeError:
+    #         return {"error": "ИИ вернул некорректный JSON"}, 400
+    #     except Exception as e:
+    #         current_app.logger.error(f"OpenRouter error: {str(e)}")
+    #         return {"error": str(e)}, 500
+
+    # return render_template('mock_generator.html')
+        if request.method == 'POST':
+            try:
+                # 1. Получаем и проверяем данные
+                data = request.get_json()
+                if not data:
+                    return {"error": "No data provided"}, 400
+                    
+                count = int(data.get('count', 1))
+                fields = data.get('fields', [])
+
+                # 2. Подготовка запроса
+                headers = {
+                    "Authorization": f"Bearer {current_app.config['OPENROUTER_API_KEY']}",
                     "HTTP-Referer": request.host_url,
-                    "X-Title": "DataForge Mock Generator"
+                    "X-Title": "DataForge",
+                    "Content-Type": "application/json"
                 }
-            )
-            
-            # Извлекаем и валидируем ответ
-            generated_content = response.choices[0].message.content
-            mock_objects = json.loads(generated_content.strip())
+                
+                payload = {
+                    "model": "anthropic/claude-3-haiku",
+                    "messages": [{
+                        "role": "user",
+                        "content": f"Generate {count} JSON objects with: {json.dumps(fields)}"
+                    }],
+                    "max_tokens": 2000,
+                    "response_format": {"type": "json_object"}  # Важно для JSON-ответа
+                }
 
-            # Сохранение результатов (как в предыдущем примере)
-            filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
-            
-            dataset = Dataset(
-                filename=filename,
-                user_id=current_user.id,
-                data_type='json',
-                source='openrouter-gpt4'
-            )
-            db.session.add(dataset)
-            db.session.commit()
-            
-            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(mock_data)
-            
-            return {"success": True, "mockData": mock_data}
+                # 3. Отправка запроса с таймаутом
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
 
-        except json.JSONDecodeError:
-            return {"error": "ИИ вернул некорректный JSON"}, 400
-        except Exception as e:
-            current_app.logger.error(f"OpenRouter error: {str(e)}")
-            return {"error": str(e)}, 500
+                # 4. Проверка ответа
+                if not response.text:
+                    raise ValueError("Empty response from API")
 
-    return render_template('mock_generator.html')
+                try:
+                    result = response.json()
+                except json.JSONDecodeError:
+                    raise ValueError(f"Invalid JSON: {response.text[:200]}")
 
+                # 5. Извлечение данных
+                if 'choices' not in result or not result['choices']:
+                    raise ValueError("Invalid response format")
+
+                content = result['choices'][0]['message']['content']
+                
+                try:
+                    mock_data = json.loads(content)
+                except json.JSONDecodeError:
+                    # Попробуем извлечь JSON из текста
+                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                    if json_match:
+                        mock_data = json.loads(json_match.group())
+                    else:
+                        raise ValueError("No valid JSON found in response")
+
+                # 6. Сохранение результата
+                filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                with open(os.path.join(current_app.config['UPLOAD_FOLDER'], filename), 'w') as f:
+                    json.dump(mock_data, f, indent=2)
+
+                return {
+                    "success": True,
+                    "filename": filename,
+                    "data": mock_data
+                }
+
+            except Exception as e:
+                current_app.logger.error(f"Generation error: {str(e)}")
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "details": "See server logs for details"
+                }, 500
+        return render_template('mock_generator.html')
 
 # Функции генерации для fallback (если API недоступно)
 def generate_string(constraints):
