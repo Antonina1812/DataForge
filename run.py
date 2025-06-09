@@ -5,5 +5,7 @@ if __name__ == '__main__':
     with app.app_context():  # Создаем контекст приложения Flask
         from app.dashboard import create_dash_app
         dash_app = create_dash_app(app)
+        
+        db.create_all()
 
     app.run(debug=True)
