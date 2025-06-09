@@ -1,0 +1,20 @@
+[
+  {
+    "fieldName": "ton",
+    "fieldType": "string",
+    "description": "iu",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "3",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "aaa",
+      "enum": [
+        "1",
+        "2"
+      ],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]

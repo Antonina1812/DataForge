@@ -1,0 +1,20 @@
+[
+  {
+    "fieldName": "usre",
+    "fieldType": "string",
+    "description": "we",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "3",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "12",
+      "enum": [
+        "1",
+        "2"
+      ],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]

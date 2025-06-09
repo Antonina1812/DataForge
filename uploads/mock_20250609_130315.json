@@ -1,0 +1,20 @@
+[
+  {
+    "fieldName": "user",
+    "fieldType": "string",
+    "description": "rty",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "3",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "abc",
+      "enum": [
+        "v1",
+        "v2"
+      ],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]
