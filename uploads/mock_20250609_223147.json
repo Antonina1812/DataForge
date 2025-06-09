@@ -1,0 +1,20 @@
+[
+  {
+    "fieldName": "user",
+    "fieldType": "string",
+    "description": "qwe",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "3",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "qwe",
+      "enum": [
+        "1",
+        "2"
+      ],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]

@@ -334,47 +334,11 @@ def delete_file(file_id):
     
     return redirect(url_for('dashboard'))
 
-# def generate_string(constraints):
-#     if constraints.get('enum'):
-#         enum_values = [v.strip() for v in constraints['enum'].split(',') if v.strip()]
-#         if enum_values:
-#             return random.choice(enum_values)
-    
-#     min_len = max(0, int(constraints.get('minLength', 5)))
-#     max_len = max(min_len, int(constraints.get('maxLength', 10)))
-#     length = random.randint(min_len, max_len)
-#     chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-#     return ''.join(random.choices(chars, k=length))
-
-# def generate_number(constraints):
-#     if constraints.get('enum'):
-#         enum_values = [float(v.strip()) for v in constraints['enum'].split(',') if v.strip()]
-#         if enum_values:
-#             return random.choice(enum_values)
-    
-#     minimum = float(constraints.get('minimum', 0))
-#     maximum = float(constraints.get('maximum', 100))
-#     return round(random.uniform(minimum, maximum), 2)
-
-# def generate_array(constraints):
-#     items_type = constraints.get('items', {}).get('type', 'string')
-#     return [generate_simple_value(items_type) for _ in range(random.randint(1, 5))]
-
-# def generate_simple_value(field_type):
-#     if field_type == 'string':
-#         return ''.join(random.choices('abcde', k=5))
-#     elif field_type == 'number':
-#         return random.randint(1, 100)
-#     elif field_type == 'boolean':
-#         return random.choice([True, False])
-#     return None
-
 @app.route('/mock_generator', methods=['GET', 'POST'])
 @login_required
 def mock_generator():
     if request.method == 'POST':
         try:
-            # 1. Получаем и валидируем входные данные
             data = request.get_json()
             if not data or 'fields' not in data:
                 return {"error": "Invalid request data"}, 400
@@ -382,19 +346,19 @@ def mock_generator():
             count = max(1, min(int(data.get('count', 1)), 100))  # Лимит 100 объектов
             fields = data['fields']
 
-            # 2. Формируем абсолютно четкий промпт
             prompt = f"""
-            Требуется сгенерировать {count} JSON-объектов со следующей структурой:
+            You MUST generate EXACTLY {count} JSON objects with this structure:
             {json.dumps(fields, indent=2)}
 
-            Требования:
-            1. Верни ТОЛЬКО JSON-массив без каких-либо комментариев
-            2. Все поля должны соответствовать указанным типам
-            3. Пример корректного ответа для одного объекта:
+            RULES:
+            1. Output MUST be ONLY a JSON array
+            2. Use exactly these field names and types
+            3. Example valid response:
             [{{"{fields[0]['fieldName']}": "example_value"}}]
+
+            IMPORTANT: DO NOT include any text outside the JSON array!
             """
 
-            # 3. Отправляем запрос к API
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
@@ -402,23 +366,20 @@ def mock_generator():
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "anthropic/claude-3-haiku",
+                    "model": "mistralai/mistral-7b-instruct",
                     "messages": [{"role": "user", "content": prompt}],
                     "response_format": {"type": "json_object"},
-                    "max_tokens": 4000,
+                    "max_tokens": 2000,
                     "temperature": 0.7
                 },
                 timeout=30
             )
 
-            # 4. Тщательная обработка ответа
             response.raise_for_status()
             response_data = response.json()
             
-            # 5. Извлекаем и валидируем контент
             content = response_data['choices'][0]['message']['content']
             
-            # Удаляем все не-JSON части (включая ```json ```)
             json_str = re.sub(r'^.*?(\[.*\]).*?$', r'\1', content, flags=re.DOTALL)
             
             try:
@@ -428,11 +389,9 @@ def mock_generator():
             except json.JSONDecodeError:
                 raise ValueError(f"Не удалось распарсить JSON из ответа: {content[:200]}")
 
-            # 6. Гарантированно корректное сохранение
             filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             
-            # Проверяем и создаем директорию
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -447,7 +406,7 @@ def mock_generator():
             return {
                 "success": True,
                 "filename": filename,
-                "data": mock_data[:2]  # Возвращаем первые 2 объекта для проверки
+                "data": mock_data[:2]
             }
 
         except requests.exceptions.RequestException as e:
