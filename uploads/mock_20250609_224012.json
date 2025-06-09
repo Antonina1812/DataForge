@@ -1,0 +1,20 @@
+[
+  {
+    "fieldName": "user",
+    "fieldType": "string",
+    "description": "wer",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "3",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "wer",
+      "enum": [
+        "1",
+        "2"
+      ],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]

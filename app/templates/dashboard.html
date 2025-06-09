@@ -1,7 +1,4 @@
 {% extends "base.html" %}
-
-{% block title %}Личный кабинет{% endblock %}
-
 {% block content %}
 <div class="container">
     <h1>Личный кабинет</h1>
@@ -13,24 +10,56 @@
     </div>
 
     <h2>Мои файлы:</h2>
-    {% if datasets %}
+    
+    {% if db_datasets or physical_files %}
     <div class="list-group">
-        {% for dataset in datasets %}
+        <!-- Сначала показываем файлы из базы данных -->
+        {% for dataset in db_datasets %}
         <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <strong>{{ dataset.filename }}</strong>
                     <div class="text-muted small">
                         {{ dataset.upload_date.strftime('%d.%m.%Y %H:%M') }}
+                        <span class="badge bg-info">Из БД</span>
                     </div>
                 </div>
                 <div>
                     <a href="{{ url_for('download_file', filename=dataset.filename) }}" 
-                    class="btn btn-sm btn-primary">
+                       class="btn btn-sm btn-primary">
                         Скачать
                     </a>
-                    <form action="{{ url_for('delete_file', file_id=dataset.id) }}" method="POST">
+                    <form action="{{ url_for('delete_file', file_id=dataset.id) }}" method="POST" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger ms-2"
+                                onclick="return confirm('Вы уверены, что хотите удалить этот файл?')">
+                            Удалить
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Затем показываем физические файлы -->
+        {% for file in physical_files %}
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ file.filename }}</strong>
+                    <div class="text-muted small">
+                        {{ file.upload_date.strftime('%d.%m.%Y %H:%M') }}
+                        <span class="badge bg-warning text-dark">Физический</span>
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('download_file', filename=file.filename) }}" 
+                       class="btn btn-sm btn-primary">
+                        Скачать
+                    </a>
+                    <form action="{{ url_for('delete_physical_file') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="filename" value="{{ file.filename }}">
                         <button type="submit" class="btn btn-sm btn-danger ms-2"
                                 onclick="return confirm('Вы уверены, что хотите удалить этот файл?')">
                             Удалить

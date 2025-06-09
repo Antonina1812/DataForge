@@ -1,0 +1,20 @@
+[
+  {
+    "fieldName": "user",
+    "fieldType": "string",
+    "description": "uuu",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "3",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "op",
+      "enum": [
+        "1",
+        "2"
+      ],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]

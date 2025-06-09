@@ -87,11 +87,77 @@ def logout():
     flash('Вы вышли из аккаунта.', 'info')
     return redirect(url_for('index'))
 
+# @app.route('/dashboard')
+# @login_required
+# def dashboard():
+#     datasets = Dataset.query.filter_by(user_id=current_user.id).all()
+#     return render_template('dashboard.html', datasets=datasets)
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    datasets = Dataset.query.filter_by(user_id=current_user.id).all()
-    return render_template('dashboard.html', datasets=datasets)
+    """Личный кабинет с файлами из БД и физическими файлами"""
+    # Получаем файлы из базы данных
+    db_datasets = Dataset.query.filter_by(user_id=current_user.id).all()
+    
+    # Получаем физические файлы из папки uploads
+    upload_dir = current_app.config['UPLOAD_FOLDER']
+    physical_files = []
+    
+    if os.path.exists(upload_dir):
+        # Фильтруем только файлы текущего пользователя
+        user_files = []
+        for filename in os.listdir(upload_dir):
+            if filename.startswith(f"user_{current_user.id}_"):
+                filepath = os.path.join(upload_dir, filename)
+                if os.path.isfile(filepath):
+                    upload_date = datetime.fromtimestamp(os.path.getmtime(filepath))
+                    user_files.append({
+                        'filename': filename,
+                        'upload_date': upload_date,
+                        'is_physical': True  # Флаг, что это физический файл
+                    })
+        
+        physical_files = sorted(user_files, key=lambda x: x['upload_date'], reverse=True)
+    
+    return render_template('dashboard.html', 
+                         db_datasets=db_datasets,
+                         physical_files=physical_files)
+
+@app.route('/delete_physical_file', methods=['POST'])
+@login_required
+def delete_physical_file():
+    """Удаление физического файла"""
+    try:
+        filename = request.form.get('filename')
+        if not filename:
+            flash('Не указано имя файла', 'danger')
+            return redirect(url_for('dashboard'))
+            
+        safe_filename = secure_filename(filename)
+        if not safe_filename:
+            raise ValueError("Недопустимое имя файла")
+            
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], safe_filename)
+        
+        # Проверка безопасности пути
+        if not os.path.abspath(filepath).startswith(os.path.abspath(current_app.config['UPLOAD_FOLDER'])):
+            raise ValueError("Попытка доступа к недопустимому пути")
+        
+        # Проверка существования файла
+        if not os.path.exists(filepath):
+            flash('Файл не найден', 'warning')
+            return redirect(url_for('dashboard'))
+        
+        # Удаляем файл
+        os.remove(filepath)
+        flash('Файл успешно удален', 'success')
+        
+    except Exception as e:
+        current_app.logger.error(f"Ошибка при удалении файла: {str(e)}")
+        flash('Произошла ошибка при удалении файла', 'danger')
+    
+    return redirect(url_for('dashboard'))
 
 @app.route('/check_files')
 @login_required
@@ -111,10 +177,47 @@ def check_files():
                          physical_files=files,
                          db_files=[f.filename for f in db_files])
 
+# @app.route('/download/<filename>')
+# @login_required
+# def download_file(filename):
+#     """Безопасное скачивание файла"""
+#     try:
+#         safe_filename = secure_filename(filename)
+#         if not safe_filename:
+#             raise ValueError("Недопустимое имя файла")
+            
+#         upload_folder = current_app.config['UPLOAD_FOLDER']
+#         file_path = os.path.join(upload_folder, safe_filename)
+        
+#         # Дополнительная проверка безопасности пути
+#         if not os.path.abspath(file_path).startswith(os.path.abspath(upload_folder)):
+#             raise ValueError("Попытка доступа к недопустимому пути")
+        
+#         # Проверка существования файла
+#         if not os.path.exists(file_path):
+#             current_app.logger.error(f"File not found: {file_path}")
+#             abort(404, description="Файл не найден")
+        
+#         # Проверка принадлежности файла пользователю
+#         dataset = Dataset.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
+#         if not dataset:
+#             abort(403, description="Доступ запрещен")
+        
+#         return send_from_directory(
+#             upload_folder,
+#             safe_filename,
+#             as_attachment=True,
+#             mimetype='application/json'
+#         )
+        
+#     except Exception as e:
+#         current_app.logger.error(f"Download error: {str(e)}")
+#         abort(500, description=str(e))
+
 @app.route('/download/<filename>')
 @login_required
 def download_file(filename):
-    """Безопасное скачивание файла"""
+    """Безопасное скачивание файла (из БД или физического)"""
     try:
         safe_filename = secure_filename(filename)
         if not safe_filename:
@@ -123,7 +226,7 @@ def download_file(filename):
         upload_folder = current_app.config['UPLOAD_FOLDER']
         file_path = os.path.join(upload_folder, safe_filename)
         
-        # Дополнительная проверка безопасности пути
+        # Проверка безопасности пути
         if not os.path.abspath(file_path).startswith(os.path.abspath(upload_folder)):
             raise ValueError("Попытка доступа к недопустимому пути")
         
@@ -132,10 +235,11 @@ def download_file(filename):
             current_app.logger.error(f"File not found: {file_path}")
             abort(404, description="Файл не найден")
         
-        # Проверка принадлежности файла пользователю
-        dataset = Dataset.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
-        if not dataset:
-            abort(403, description="Доступ запрещен")
+        # Для файлов из БД проверяем принадлежность
+        if not filename.startswith(f"user_{current_user.id}_"):
+            dataset = Dataset.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
+            if not dataset:
+                abort(403, description="Доступ запрещен")
         
         return send_from_directory(
             upload_folder,
@@ -187,77 +291,6 @@ def upload():
 
 
     return render_template('upload.html', form=form)
-
-# @app.route('/mock_generator', methods=['GET', 'POST'])
-# @login_required
-# def mock_generator():
-#     if request.method == 'POST':
-#         try:
-#             data = request.get_json()
-#             if not data:
-#                 return {"error": "No data provided"}, 400
-                
-#             count = int(data.get('count', 1))  # По умолчанию 1 объект
-#             fields = data.get('fields', [])
-            
-#             if not isinstance(fields, list):
-#                 return {"error": "Fields should be an array"}, 400
-
-#             mock_objects = []
-#             for _ in range(count):
-#                 mock_object = {}
-#                 for field in fields:
-#                     if not isinstance(field, dict):
-#                         continue
-                        
-#                     field_name = field.get('fieldName')
-#                     if not field_name:
-#                         continue
-                        
-#                     field_type = field.get('fieldType', 'string')
-#                     constraints = field.get('constraints', {}) or {}
-                    
-#                     try:
-#                         if field_type == 'string':
-#                             mock_object[field_name] = generate_string(constraints)
-#                         elif field_type == 'number':
-#                             mock_object[field_name] = generate_number(constraints)
-#                         elif field_type == 'boolean':
-#                             mock_object[field_name] = True
-#                         elif field_type == 'array':
-#                             mock_object[field_name] = generate_array(constraints)
-#                         elif field_type == 'date':
-#                             mock_object[field_name] = datetime.now().strftime('%Y-%m-%d')
-#                     except Exception as e:
-#                         print(f"Error generating field {field_name}: {str(e)}")
-#                         mock_object[field_name] = None
-                
-#                 if mock_object:  # Добавляем только если есть данные
-#                     mock_objects.append(mock_object)
-            
-#             if not mock_objects:
-#                 return {"error": "No valid fields to generate"}, 400
-            
-#             # Сохраняем в базу данных
-#             filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-#             mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
-            
-#             dataset = Dataset(filename=filename, user_id=current_user.id)
-#             db.session.add(dataset)
-#             db.session.commit()
-            
-#             # Сохраняем файл на сервере
-#             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-#             with open(filepath, 'w', encoding='utf-8') as f:
-#                 f.write(mock_data)
-            
-#             return {"success": True, "mockData": mock_data}
-        
-#         except Exception as e:
-#             print(f"Error in mock_generator: {str(e)}")
-#             return {"error": str(e)}, 500
-    
-#     return render_template('mock_generator.html')
 
 @app.route('/mock_result')
 @login_required

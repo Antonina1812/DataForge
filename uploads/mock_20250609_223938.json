@@ -1,0 +1,17 @@
+[
+  {
+    "fieldName": "user",
+    "fieldType": "string",
+    "description": "A unique identifier for a user",
+    "constraints": {
+      "minLength": "1",
+      "maxLength": "30",
+      "minimum": null,
+      "maximum": null,
+      "pattern": "^[a-zA-Z0-9_]+$",
+      "enum": [],
+      "items": null,
+      "dateFormat": null
+    }
+  }
+]
