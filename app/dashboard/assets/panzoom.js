@@ -93,7 +93,6 @@
       }, 1500);
     });
 
-    console.log("✓ pan/zoom готов");
     return true;
   }
 
