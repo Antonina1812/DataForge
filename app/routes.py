@@ -9,6 +9,7 @@ from passlib.hash import sha256_crypt
 from datetime import datetime
 import random, requests, json, os, openai
 import re
+from app.dashboard.data_manager import DataManager
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -549,3 +550,6 @@ def generate_array(constraints):
     elif item_type == 'number':
         return [generate_number({}) for _ in range(size)]
     return []
+
+dm = DataManager()
+

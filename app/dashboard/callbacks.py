@@ -149,3 +149,31 @@ def register_callbacks(app):
             return updated_layouts, new_children
 
         return no_update, no_update
+
+    @app.callback(
+        Output("download-file", "data"),
+        Input("download-btn", "n_clicks"),
+        State("file-selector", "value"),
+        prevent_initial_call=True
+    )
+    def trigger_download(n_clicks, filename):
+        if not filename:
+            raise no_update
+        
+        try:
+            file_path = dm.get_file_path(filename)
+            return dcc.send_file(file_path)
+        except Exception as e:
+            print(f"Download error: {str(e)}")
+            return no_update
+
+    @app.callback(
+        Output("download-status", "children"),
+        Input("download-btn", "n_clicks"),
+        State("file-selector", "value"),
+        prevent_initial_call=True
+    )
+    def show_download_status(n_clicks, filename):
+        if not filename:
+            return dbc.Alert("Please select a file first", color="danger", duration=3000)
+        return no_update

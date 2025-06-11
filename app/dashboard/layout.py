@@ -26,8 +26,16 @@ def _controls_body() -> html.Div:
                     outline=True,
                     title="Refresh"
                 ),
-            ], className="mb-3"),
-            
+                dbc.Button(  
+                        "⤵️",
+                        id="download-btn",
+                        color="secondary",
+                        outline=True,
+                        title="Download",
+                        className="ms-2"
+                    ),
+                ], className="mb-3"),
+            html.Div(id="download-status"),
             dbc.Label("Graph Type"),
             dcc.Dropdown(
                 id="chart-type",
@@ -49,6 +57,7 @@ def _controls_body() -> html.Div:
             dbc.Button("➕ Add", id="add-chart", n_clicks=0, color="success"),
             html.Hr(),
             html.Div(id="output-data-upload"),
+            dcc.Download(id="download-file"), 
         ],
         className="p-3",
     )
@@ -67,6 +76,7 @@ def make_layout() -> html.Div:
             "width": "100%",
         },
     )
+
 
     return html.Div(
         [

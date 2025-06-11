@@ -3,6 +3,7 @@ import pandas as pd
 import base64
 import io
 from typing import List, Tuple
+from werkzeug.utils import safe_join
 
 
 class DataManager:
@@ -87,3 +88,18 @@ class DataManager:
             
         except Exception as e:
             raise Exception(f"Error: {str(e)}")
+
+    def get_file_path(self, filename: str) -> str:
+            """Возвращает безопасный путь к файлу для скачивания"""
+            if not filename:
+                raise ValueError("Filename is required")
+            
+            safe_path = safe_join(self.data_directory, filename)
+            if not os.path.exists(safe_path):
+                raise FileNotFoundError(f"File {filename} not found")
+            
+            _, ext = os.path.splitext(filename)
+            if ext.lower() not in self.supported_extensions:
+                raise ValueError(f"Unsupported file type: {ext}")
+            
+            return safe_path
