@@ -551,5 +551,35 @@ def generate_array(constraints):
         return [generate_number({}) for _ in range(size)]
     return []
 
-dm = DataManager()
-
+@app.route('/api/file/<int:file_id>', methods=['GET'])
+@login_required
+def get_file_json(file_id):
+    #API для получения файла в формате json
+    try:
+        # Находим файл в базе данных
+        dataset = Dataset.query.get_or_404(file_id)
+        
+        # Проверяем принадлежность файла пользователю
+        if dataset.user_id != current_user.id:
+            abort(403, description="Доступ запрещен")
+        
+        # Формируем путь к файлу
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dataset.filename)
+        
+        # Проверяем существование файла
+        if not os.path.exists(filepath):
+            abort(404, description="Файл не найден")
+        
+        # Читаем и возвращаем содержимое файла
+        with open(filepath, 'r', encoding='utf-8') as f:
+            file_content = json.load(f)
+            
+        return jsonify({
+            "filename": dataset.filename,
+            "file_id": file_id,
+            "content": file_content
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"API get_file_json error: {str(e)}")
+        return jsonify({"error": str(e)}), 500

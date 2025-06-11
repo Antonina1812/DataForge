@@ -11,7 +11,6 @@ def _controls_body() -> html.Div:
         [
             html.H5("GraphPanel"),
             html.Hr(),
-            
             dbc.Label("Choose file"),
             dbc.InputGroup([
                 dcc.Dropdown(
@@ -57,7 +56,15 @@ def _controls_body() -> html.Div:
             dbc.Button("➕ Add", id="add-chart", n_clicks=0, color="success"),
             html.Hr(),
             html.Div(id="output-data-upload"),
-            dcc.Download(id="download-file"), 
+            dcc.Download(id="download-file"),
+            html.Div([
+                html.Hr(),
+                html.H4("JSON Metrics", className="mt-3 mb-3"),
+                dbc.Spinner(
+                    html.Div(id="file-metrics", className="metrics-container"),
+                    color="primary"
+                ),
+            ], id="metrics-section", style={"display": "none"})
         ],
         className="p-3",
     )
