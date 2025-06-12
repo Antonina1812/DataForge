@@ -3,10 +3,10 @@ import pandas as pd
 from dash import dcc, html, Input, Output, State, ctx, ALL, no_update
 import dash_bootstrap_components as dbc
 import dash_draggable as dg
-
+from flask import current_app
 from .data_manager import DataManager
 from .chart_factory import ChartFactory
-
+from dash.exceptions import PreventUpdate
 
 dm = DataManager()
 
@@ -149,3 +149,86 @@ def register_callbacks(app):
             return updated_layouts, new_children
 
         return no_update, no_update
+
+    @app.callback(
+        Output("download-file", "data"),
+        Input("download-btn", "n_clicks"),
+        State("file-selector", "value"),
+        prevent_initial_call=True
+    )
+    def trigger_download(n_clicks, filename):
+        if not filename:
+            raise no_update
+        
+        try:
+            file_path = dm.get_file_path(filename)
+            return dcc.send_file(file_path)
+        except Exception as e:
+            print(f"Download error: {str(e)}")
+            return no_update
+
+    @app.callback(
+        Output("download-status", "children"),
+        Input("download-btn", "n_clicks"),
+        State("file-selector", "value"),
+        prevent_initial_call=True
+    )
+    def show_download_status(n_clicks, filename):
+        if not filename:
+            return dbc.Alert("Please select a file first", color="danger", duration=3000)
+        return no_update
+   
+
+    @app.callback(
+        Output("file-metrics", "children"),
+        Output("metrics-section", "style"),
+        Input("stored-data", "data"),
+        prevent_initial_call=True
+    )
+    def update_metrics(records):
+        if not records:
+            return no_update, no_update
+        
+        try:
+            df = pd.DataFrame(records)
+            metrics = dm._calculate_metrics(df)
+            
+            # Форматируем метрики для отображения
+            metrics_output = []
+            for col, col_metrics in metrics.items():
+                metrics_output.append(html.H5(col, className="mt-3"))
+                
+                if 'mean' in col_metrics:  # Числовые колонки
+                    metrics_output.append(html.Div([
+                        html.P(f"Count: {col_metrics['count']}"),
+                        html.P(f"Mean: {col_metrics['mean']:.2f}"),
+                        html.P(f"Std: {col_metrics['std']:.2f}"),
+                        html.P(f"Min: {col_metrics['min']}"),
+                        html.P(f"25%: {col_metrics['25%']}"),
+                        html.P(f"50%: {col_metrics['50%']}"),
+                        html.P(f"75%: {col_metrics['75%']}"),
+                        html.P(f"Max: {col_metrics['max']}"),
+                        html.P(f"Missing: {col_metrics['missing']}"),
+                        html.P(f"Skewness: {col_metrics['skewness']:.2f}"),
+                        html.P(f"Kurtosis: {col_metrics['kurtosis']:.2f}"),
+                        html.Details([
+                            html.Summary("Correlations"),
+                            html.Ul([
+                                html.Li(f"{k}: {v:.2f}")
+                                for k, v in col_metrics['correlation'].items()
+                            ])
+                        ])
+                    ]))
+                else:  # Строковые колонки
+                    metrics_output.append(html.Div([
+                        html.P(f"Count: {col_metrics['count']}"),
+                        html.P(f"Unique: {col_metrics['unique']}"),
+                        html.P(f"Top: {col_metrics['top']}"),
+                        html.P(f"Freq: {col_metrics['freq']}"),
+                        html.P(f"Missing: {col_metrics['missing']}")
+                    ]))
+            
+            return metrics_output, {"display": "block"}
+        
+        except Exception as e:
+            return dbc.Alert(f"Error calculating metrics: {str(e)}", color="danger"), {"display": "block"}

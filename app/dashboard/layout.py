@@ -1,5 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
+from flask_login import current_user
 import dash_draggable as dg
 import plotly.io as pio
 
@@ -11,7 +12,6 @@ def _controls_body() -> html.Div:
         [
             html.H5("GraphPanel"),
             html.Hr(),
-            
             dbc.Label("Choose file"),
             dbc.InputGroup([
                 dcc.Dropdown(
@@ -26,8 +26,16 @@ def _controls_body() -> html.Div:
                     outline=True,
                     title="Refresh"
                 ),
-            ], className="mb-3"),
-            
+                dbc.Button(  
+                        "⤵️",
+                        id="download-btn",
+                        color="secondary",
+                        outline=True,
+                        title="Download",
+                        className="ms-2"
+                    ),
+                ], className="mb-3"),
+            html.Div(id="download-status"),
             dbc.Label("Graph Type"),
             dcc.Dropdown(
                 id="chart-type",
@@ -49,8 +57,47 @@ def _controls_body() -> html.Div:
             dbc.Button("➕ Add", id="add-chart", n_clicks=0, color="success"),
             html.Hr(),
             html.Div(id="output-data-upload"),
+            dcc.Download(id="download-file"),
+            html.Div([
+                html.Hr(),
+                html.H4("JSON Metrics", className="mt-3 mb-3"),
+                dbc.Spinner(
+                    html.Div(id="file-metrics", className="metrics-container"),
+                    color="primary"
+                ),
+            ], id="metrics-section", style={"display": "none"})
         ],
         className="p-3",
+    )
+
+def navbar() -> dbc.Navbar:
+    if current_user and not current_user.is_anonymous:
+        nav_items = [
+            dbc.NavItem(dbc.NavLink("Личный кабинет",  href="/dashboard")),
+            dbc.NavItem(dbc.NavLink("Выйти",            href="/logout")),
+            dbc.NavItem(dbc.NavLink("Генерация mock",   href="/mock_generator")),
+        ]
+    else:
+        nav_items = [
+            dbc.NavItem(dbc.NavLink("Зарегистрироваться", href="/register")),
+            dbc.NavItem(dbc.NavLink("Войти",              href="/login")),
+        ]
+
+    return dbc.Navbar(
+        dbc.Container(
+            [
+                dbc.NavbarBrand("DataForge", href="/"),
+                dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
+                dbc.Collapse(
+                    dbc.Nav(nav_items, className="ml-auto", navbar=True),
+                    id="navbar-collapse",
+                    navbar=True,
+                ),
+            ]
+        ),
+        color="dark",
+        expand="lg",
+        sticky="top",
     )
 
 def make_layout() -> html.Div:
@@ -68,9 +115,10 @@ def make_layout() -> html.Div:
         },
     )
 
+
     return html.Div(
         [
-            dbc.NavbarSimple("Dashboard", dark=True, color="primary", fixed="top"),
+            navbar(),
             
             dbc.Button(
                 "☰", id="controls-toggle", size="lg",

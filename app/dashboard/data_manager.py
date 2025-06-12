@@ -3,6 +3,7 @@ import pandas as pd
 import base64
 import io
 from typing import List, Tuple
+from werkzeug.utils import safe_join
 
 
 class DataManager:
@@ -87,3 +88,62 @@ class DataManager:
             
         except Exception as e:
             raise Exception(f"Error: {str(e)}")
+
+    def get_file_path(self, filename: str) -> str:
+           
+            if not filename:
+                raise ValueError("Filename is required")
+            
+            safe_path = safe_join(self.data_directory, filename)
+            if not os.path.exists(safe_path):
+                raise FileNotFoundError(f"File {filename} not found")
+            
+            _, ext = os.path.splitext(filename)
+            if ext.lower() not in self.supported_extensions:
+                raise ValueError(f"Unsupported file type: {ext}")
+            
+            return safe_path
+
+    def _calculate_metrics(self, df: pd.DataFrame) -> dict:
+        """Вычисление метрик для DataFrame"""
+        metrics = {}
+        
+        for column in df.columns:
+            col_metrics = {}
+            dtype = df[column].dtype
+            
+            # Общие метрики
+            col_metrics['count'] = len(df[column])
+            col_metrics['missing'] = df[column].isnull().sum()
+            
+            if pd.api.types.is_numeric_dtype(dtype):
+                # Метрики для числовых колонок
+                desc = df[column].describe()
+                col_metrics.update({
+                    'mean': desc.get('mean'),
+                    'std': desc.get('std'),
+                    'min': desc.get('min'),
+                    '25%': desc.get('25%'),
+                    '50%': desc.get('50%'),
+                    '75%': desc.get('75%'),
+                    'max': desc.get('max'),
+                    'skewness': df[column].skew(),
+                    'kurtosis': df[column].kurtosis(),
+                    'correlation': {
+                        other_col: df[column].corr(df[other_col])
+                        for other_col in df.select_dtypes(include='number').columns
+                        if other_col != column
+                    }
+                })
+            elif pd.api.types.is_string_dtype(dtype) or pd.api.types.is_categorical_dtype(dtype):
+                # Метрики для строковых колонок
+                desc = df[column].describe()
+                col_metrics.update({
+                    'unique': desc.get('unique'),
+                    'top': desc.get('top'),
+                    'freq': desc.get('freq')
+                })
+            
+            metrics[column] = col_metrics
+        
+        return metrics
