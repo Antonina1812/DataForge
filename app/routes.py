@@ -173,8 +173,18 @@ def upload():
                 dataset = Dataset(filename=filename, user_id=current_user.id)
                 db.session.add(dataset)
                 db.session.commit()
-                flash('Файл успешно загружен и сохранен!', 'success')
-                return redirect(url_for('dashboard'))
+
+                #передача файла в статистику
+                from . import processing
+                processing_result = processing.process_json(data)
+                if processing_result['success']:
+                    dataset.processing_result = json.dumps(processing_result['result'])
+                    db.session.commit()
+                                  
+                    flash('Файл успешно загружен, обработан и сохранен!', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash(f'Ошибка обработки: {processing_result["error"]}', 'danger')
             else:
                 os.remove(filepath) # Удаляем невалидный файл
                 flash('Ошибка: Невалидный JSON файл.', 'danger')
