@@ -73,20 +73,30 @@ def _controls_body() -> html.Div:
 def navbar() -> dbc.Navbar:
     if current_user and not current_user.is_anonymous:
         nav_items = [
-            dbc.NavItem(dbc.NavLink("Личный кабинет",  href="/dashboard")),
-            dbc.NavItem(dbc.NavLink("Выйти",            href="/logout")),
-            dbc.NavItem(dbc.NavLink("Генерация mock",   href="/mock_generator")),
+            dbc.NavItem(
+                dbc.NavLink("Личный кабинет", href="/dashboard", external_link=True)
+            ),
+            dbc.NavItem(
+                dbc.NavLink("Выйти", href="/logout", external_link=True)
+            ),
+            dbc.NavItem(
+                dbc.NavLink("Генерация mock", href="/mock_generator", external_link=True)
+            ),
         ]
     else:
         nav_items = [
-            dbc.NavItem(dbc.NavLink("Зарегистрироваться", href="/register")),
-            dbc.NavItem(dbc.NavLink("Войти",              href="/login")),
+            dbc.NavItem(
+                dbc.NavLink("Зарегистрироваться", href="/register", external_link=True)
+            ),
+            dbc.NavItem(
+                dbc.NavLink("Войти", href="/login", external_link=True)
+            ),
         ]
 
     return dbc.Navbar(
         dbc.Container(
             [
-                dbc.NavbarBrand("DataForge", href="/"),
+                dbc.NavbarBrand("DataForge", href="/", external_link=True),
                 dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
                 dbc.Collapse(
                     dbc.Nav(nav_items, className="ml-auto", navbar=True),
@@ -155,3 +165,7 @@ def make_layout() -> html.Div:
             dcc.Store(id="stored-data"),
         ]
     )
+
+# для отслеживания зарегистрированного пользователя
+def serve_layout():
+    return make_layout()

@@ -24,10 +24,10 @@ def create_dash_app(flask_app):
         assets_folder=os.path.join(os.path.dirname(__file__), 'assets'),
     )
     
-    from .layout import make_layout
+    from .layout import serve_layout
     from .callbacks import register_callbacks
     
-    dash_app.layout = make_layout()
+    dash_app.layout = serve_layout
     register_callbacks(dash_app)
     
     return dash_app

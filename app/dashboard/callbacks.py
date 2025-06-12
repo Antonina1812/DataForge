@@ -232,3 +232,13 @@ def register_callbacks(app):
         
         except Exception as e:
             return dbc.Alert(f"Error calculating metrics: {str(e)}", color="danger"), {"display": "block"}
+    
+    @app.callback(
+        Output("navbar-collapse", "is_open"),
+        Input("navbar-toggler", "n_clicks"),
+        State("navbar-collapse", "is_open")
+    )
+    def toggle_nav(n, is_open):
+        if n:
+            return not is_open
+        return is_open
