@@ -9,7 +9,6 @@ from passlib.hash import sha256_crypt
 from datetime import datetime
 import random, requests, json, os, openai
 import re
-from app.dashboard.data_manager import DataManager
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -173,18 +172,8 @@ def upload():
                 dataset = Dataset(filename=filename, user_id=current_user.id)
                 db.session.add(dataset)
                 db.session.commit()
-
-                #передача файла в статистику
-                from . import processing
-                processing_result = processing.process_json(data)
-                if processing_result['success']:
-                    dataset.processing_result = json.dumps(processing_result['result'])
-                    db.session.commit()
-                                  
-                    flash('Файл успешно загружен, обработан и сохранен!', 'success')
-                    return redirect(url_for('dashboard'))
-                else:
-                    flash(f'Ошибка обработки: {processing_result["error"]}', 'danger')
+                flash('Файл успешно загружен и сохранен!', 'success')
+                return redirect(url_for('dashboard'))
             else:
                 os.remove(filepath) # Удаляем невалидный файл
                 flash('Ошибка: Невалидный JSON файл.', 'danger')
@@ -560,6 +549,3 @@ def generate_array(constraints):
     elif item_type == 'number':
         return [generate_number({}) for _ in range(size)]
     return []
-
-dm = DataManager()
-

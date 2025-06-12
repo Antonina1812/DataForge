@@ -4,6 +4,7 @@ import base64
 import io
 from typing import List, Tuple
 from werkzeug.utils import safe_join
+from app import processing
 
 
 class DataManager:
@@ -54,9 +55,16 @@ class DataManager:
                 raise ValueError(f"Incompatible file type: {ext}")
             
             records = df.to_dict('records')
-
             preview = self._create_preview(df, filename)
-            
+
+            # Получаем метрики
+            stats_result = processing.process_json(df.to_dict())
+            if stats_result["success"]:
+                metrics_markdown = self._format_metrics(stats_result["result"])
+                preview += "\n\n---\n\n" + metrics_markdown
+            else:
+                preview += f"\n\n**Error while processing stats:** {stats_result['error']}"
+
             return records, preview
             
         except Exception as e:
@@ -103,3 +111,32 @@ class DataManager:
                 raise ValueError(f"Unsupported file type: {ext}")
             
             return safe_path
+    def _format_metrics(self, metrics: dict) -> str:
+        lines = ["### 🧮 Data Metrics"]
+        
+        for col, stats in metrics.items():
+            if col == "correlation_matrix":
+                continue
+            if not isinstance(stats, dict):
+                continue
+            lines.append(f"**{col}**")
+            for key, value in stats.items():
+                if isinstance(value, float):
+                    lines.append(f"- {key}: {value:.4f}")
+                else:
+                    lines.append(f"- {key}: {value}")
+            lines.append("")  # пустая строка-разделитель
+
+        # Отдельно выводим корреляционную матрицу
+        correlation = metrics.get("correlation_matrix", {})
+        if correlation:
+            lines.append("### 🔗 Correlation Matrix")
+            for col, subcorr in correlation.items():
+                lines.append(f"**{col}**")
+                for subcol, val in subcorr.items():
+                    if col != subcol:  # опционально: не дублировать корреляцию с самим собой
+                        lines.append(f"- {subcol}: {val:.4f}")
+                lines.append("")
+        
+        return "\n".join(lines)
+    
