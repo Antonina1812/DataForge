@@ -4,6 +4,7 @@ import base64
 import io
 from typing import List, Tuple
 from werkzeug.utils import safe_join
+import json
 
 
 class DataManager:
@@ -54,9 +55,19 @@ class DataManager:
                 raise ValueError(f"Incompatible file type: {ext}")
             
             records = df.to_dict('records')
-
             preview = self._create_preview(df, filename)
-            
+
+            # Получаем метрики
+            metrics_filename = filename.rsplit('.', 1)[0] + '_metrics.json'
+            metrics_filepath = self.data_directory + '/metrics_data/' + metrics_filename
+            with open(metrics_filepath, 'r', encoding='utf-8') as f:
+                stats_result = json.load(f)
+            if stats_result["success"]:
+                metrics_markdown = self._format_metrics(stats_result["result"])
+                preview += "\n\n---\n\n" + metrics_markdown
+            else:
+                preview += f"\n\n**Error while processing stats:** {stats_result['error']}"
+
             return records, preview
             
         except Exception as e:
@@ -103,47 +114,32 @@ class DataManager:
                 raise ValueError(f"Unsupported file type: {ext}")
             
             return safe_path
+    def _format_metrics(self, metrics: dict) -> str:
+        lines = ["### 🧮 Data Metrics"]
+        
+        for col, stats in metrics.items():
+            if col == "correlation_matrix":
+                continue
+            if not isinstance(stats, dict):
+                continue
+            lines.append(f"**{col}**")
+            for key, value in stats.items():
+                if isinstance(value, float):
+                    lines.append(f"- {key}: {value:.4f}")
+                else:
+                    lines.append(f"- {key}: {value}")
+            lines.append("")  # пустая строка-разделитель
 
-    def _calculate_metrics(self, df: pd.DataFrame) -> dict:
-        """Вычисление метрик для DataFrame"""
-        metrics = {}
+        # Отдельно выводим корреляционную матрицу
+        correlation = metrics.get("correlation_matrix", {})
+        if correlation:
+            lines.append("### 🔗 Correlation Matrix")
+            for col, subcorr in correlation.items():
+                lines.append(f"**{col}**")
+                for subcol, val in subcorr.items():
+                    if col != subcol:  # опционально: не дублировать корреляцию с самим собой
+                        lines.append(f"- {subcol}: {val:.4f}")
+                lines.append("")
         
-        for column in df.columns:
-            col_metrics = {}
-            dtype = df[column].dtype
-            
-            # Общие метрики
-            col_metrics['count'] = len(df[column])
-            col_metrics['missing'] = df[column].isnull().sum()
-            
-            if pd.api.types.is_numeric_dtype(dtype):
-                # Метрики для числовых колонок
-                desc = df[column].describe()
-                col_metrics.update({
-                    'mean': desc.get('mean'),
-                    'std': desc.get('std'),
-                    'min': desc.get('min'),
-                    '25%': desc.get('25%'),
-                    '50%': desc.get('50%'),
-                    '75%': desc.get('75%'),
-                    'max': desc.get('max'),
-                    'skewness': df[column].skew(),
-                    'kurtosis': df[column].kurtosis(),
-                    'correlation': {
-                        other_col: df[column].corr(df[other_col])
-                        for other_col in df.select_dtypes(include='number').columns
-                        if other_col != column
-                    }
-                })
-            elif pd.api.types.is_string_dtype(dtype) or pd.api.types.is_categorical_dtype(dtype):
-                # Метрики для строковых колонок
-                desc = df[column].describe()
-                col_metrics.update({
-                    'unique': desc.get('unique'),
-                    'top': desc.get('top'),
-                    'freq': desc.get('freq')
-                })
-            
-            metrics[column] = col_metrics
-        
-        return metrics
+        return "\n".join(lines)
+    
