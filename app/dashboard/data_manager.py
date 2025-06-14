@@ -4,7 +4,7 @@ import base64
 import io
 from typing import List, Tuple
 from werkzeug.utils import safe_join
-from app import processing
+import json
 
 
 class DataManager:
@@ -58,7 +58,10 @@ class DataManager:
             preview = self._create_preview(df, filename)
 
             # Получаем метрики
-            stats_result = processing.process_json(df.to_dict())
+            metrics_filename = filename.rsplit('.', 1)[0] + '_metrics.json'
+            metrics_filepath = self.data_directory + '/metrics_data/' + metrics_filename
+            with open(metrics_filepath, 'r', encoding='utf-8') as f:
+                stats_result = json.load(f)
             if stats_result["success"]:
                 metrics_markdown = self._format_metrics(stats_result["result"])
                 preview += "\n\n---\n\n" + metrics_markdown

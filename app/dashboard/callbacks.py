@@ -2,13 +2,12 @@ import uuid
 import pandas as pd
 from dash import dcc, html, Input, Output, State, ctx, ALL, no_update
 import dash_bootstrap_components as dbc
-import dash_draggable as dg
-
+from app import app
 from .data_manager import DataManager
 from .chart_factory import ChartFactory
 
 
-dm = DataManager()
+dm = DataManager(app.config.get('UPLOAD_FOLDER'))
 
 def register_callbacks(app):
     @app.callback(
