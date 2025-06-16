@@ -3,14 +3,10 @@ import json
 import os 
 def process_json(json_table: dict) -> dict:
     try:
-        
-        if not isinstance(json_table, dict):
-            raise TypeError("Wrong type of input. Must be json")
-        
         df = pd.DataFrame(json_table)
 
         if df.empty:
-            raise ValueError("Your JSON is empty.")
+            raise ValueError("Your file is empty.")
 
         correlation  = df.corr(numeric_only=True).to_dict()
         print("corelation: ", correlation, "\n")

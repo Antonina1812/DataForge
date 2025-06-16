@@ -4,7 +4,7 @@ from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app.utils import validate_json_schema  # надо дописать
+from app.utils import load_file
 from passlib.hash import sha256_crypt
 from datetime import datetime
 import random, requests, json, os, openai
@@ -159,21 +159,9 @@ def upload():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         f.save(filepath)
 
-        # Валидация JSON файла (нужно написать validate_json_schema в utils.py)
         try:
-            #Загружаем JSON и (опционально) валидируем
-            with open(filepath, 'r') as file:
-                data = json.load(file)
+            data = load_file(filepath)
 
-            #Здесь можно добавить вызов функции для определения схемы
-            #json_schema =  autodetect_json_schema(data)
-            #is_valid = validate_json_schema(data, json_schema)
-
-            is_valid = True # пока не пишем валидацию
-            if not is_valid:
-                raise ValueError("Невалидный JSON по схеме")
-                os.remove(filepath) # Удаляем невалидный файл
-                flash('Ошибка: Невалидный JSON файл.', 'danger')
             # вычисляем метрики через processing.py
             from app import processing
             stats = processing.process_json(data)
