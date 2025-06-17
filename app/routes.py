@@ -1,13 +1,12 @@
-from flask import render_template, redirect, url_for, flash, request, make_response, current_app, send_from_directory, session, abort
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory, session, abort
 from app import app, db
 from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app.utils import validate_json_schema  # надо дописать
 from passlib.hash import sha256_crypt
 from datetime import datetime
-import random, requests, json, os, openai
+import random, requests, json, os
 import re
 from app.dashboard.data_manager import DataManager
 
@@ -373,69 +372,6 @@ def delete_file(file_id):
 @app.route('/mock_generator', methods=['GET', 'POST'])
 @login_required
 def mock_generator():
-    # if request.method == 'POST':
-    #     try:
-    #         data = request.get_json()
-    #         count = int(data.get('count', 1))
-    #         fields = data.get('fields', [])
-
-    #         # Настройка клиента OpenAI для OpenRouter
-    #         openai.api_base = "https://openrouter.ai/api/v1"
-    #         openai.api_key = current_app.config['OPENROUTER_API_KEY']
-            
-    #         # Формируем промпт для ИИ
-    #         prompt = f"""
-    #         Сгенерируй {count} JSON-объектов со следующими полями:
-    #         {json.dumps(fields, indent=2)}
-            
-    #         Требования:
-    #         1. Все поля должны соответствовать указанным типам
-    #         2. Учитывай все constraints
-    #         3. Верни ТОЛЬКО JSON-массив без каких-либо пояснений
-    #         """
-
-    #         # Отправляем запрос
-    #         response = openai.ChatCompletion.create(
-    #             # model="openai/gpt-4o",  
-    #             model="anthropic/claude-3-haiku",# Экономная модель
-    #             messages=[{"role": "user", "content": prompt}],
-    #             max_tokens=4000,  # Явное ограничение
-    #             headers={
-    #                 "HTTP-Referer": request.host_url,
-    #                 "X-Title": "DataForge Mock Generator"
-    #             }
-    #         )
-            
-    #         # Извлекаем и валидируем ответ
-    #         generated_content = response.choices[0].message.content
-    #         mock_objects = json.loads(generated_content.strip())
-
-    #         # Сохранение результатов (как в предыдущем примере)
-    #         filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    #         mock_data = json.dumps(mock_objects, ensure_ascii=False, indent=2)
-            
-    #         dataset = Dataset(
-    #             filename=filename,
-    #             user_id=current_user.id,
-    #             data_type='json',
-    #             source='openrouter-gpt4'
-    #         )
-    #         db.session.add(dataset)
-    #         db.session.commit()
-            
-    #         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-    #         with open(filepath, 'w', encoding='utf-8') as f:
-    #             f.write(mock_data)
-            
-    #         return {"success": True, "mockData": mock_data}
-
-    #     except json.JSONDecodeError:
-    #         return {"error": "ИИ вернул некорректный JSON"}, 400
-    #     except Exception as e:
-    #         current_app.logger.error(f"OpenRouter error: {str(e)}")
-    #         return {"error": str(e)}, 500
-
-    # return render_template('mock_generator.html')
         if request.method == 'POST':
             try:
                 # 1. Получаем и проверяем данные
