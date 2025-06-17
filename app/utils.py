@@ -1,4 +1,5 @@
 import json
+import pandas as pd
 from jsonschema import validate, ValidationError
 
 def validate_json_schema(data, schema):
@@ -59,3 +60,20 @@ def autodetect_json_schema(data):
     return schema
   else:
     return {"type": type(data).__name__}
+
+def load_file(filepath: str):
+    ext = filepath.rsplit('.', 1)[-1].lower()
+
+    if ext == 'json':
+        df = pd.read_json(filepath)
+        return df.to_dict(orient='records')
+
+    if ext == 'csv':
+        df = pd.read_csv(filepath)
+        return df.to_dict(orient='records')
+
+    if ext == 'xls' or ext == 'xlsx':
+        df = pd.read_excel(filepath)
+        return df.to_dict(orient='records')
+
+    raise ValueError(f'Недопустимое расширение: {ext}')

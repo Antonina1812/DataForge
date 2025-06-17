@@ -1,14 +1,14 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory, session, abort
+from flask import render_template, redirect, url_for, flash, request, make_response, current_app, send_from_directory, session, abort, jsonify
 from app import app, db
 from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
+from app.utils import load_file
 from passlib.hash import sha256_crypt
 from datetime import datetime
 import random, requests, json, os
 import re
-from app.dashboard.data_manager import DataManager
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -153,34 +153,38 @@ def download_file(filename):
 def upload():
     form = UploadForm()
     if form.validate_on_submit():
+        #Сохраняем файл в UPLOAD_FOLDER
         f = form.data_file.data
         filename = secure_filename(f.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         f.save(filepath)
 
-        # Валидация JSON файла (нужно написать validate_json_schema в utils.py)
         try:
-            with open(filepath, 'r') as file:
-                data = json.load(file)
+            data = load_file(filepath)
 
-            #Здесь можно добавить вызов функции для определения схемы
-            #json_schema =  autodetect_json_schema(data)
-            #is_valid = validate_json_schema(data, json_schema)
+            # вычисляем метрики через processing.py
+            from app import processing
+            stats = processing.process_json(data)
 
-            is_valid = True # пока не пишем валидацию
-            if is_valid:
-                dataset = Dataset(filename=filename, user_id=current_user.id)
-                db.session.add(dataset)
-                db.session.commit()
-                flash('Файл успешно загружен и сохранен!', 'success')
-                return redirect(url_for('dashboard'))
-            else:
-                os.remove(filepath) # Удаляем невалидный файл
-                flash('Ошибка: Невалидный JSON файл.', 'danger')
+            # cохраняем метрики в папку, доступную Dash
+            metrics_dir = app.config.get('UPLOAD_FOLDER', os.path.join(current_app.root_path, 'data'))
+            metrics_dir = os.path.join(metrics_dir, 'metrics_data')
+            os.makedirs(metrics_dir, exist_ok=True)
+            metrics_filename = filename.rsplit('.', 1)[0] + '_metrics.json'
+            metrics_path = os.path.join(metrics_dir, secure_filename(metrics_filename))
+            with open(metrics_path, 'w', encoding='utf-8') as mf:
+                json.dump(stats, mf, ensure_ascii=False, indent=2)
 
-        except json.JSONDecodeError:
+            #Сохраняем запись об исходном файле (для Flask) и о метриках (для Dash)
+            dataset = Dataset(filename=filename, user_id=current_user.id)
+            db.session.add(dataset)
+            db.session.commit()
+            flash('Файл успешно загружен и сохранен!', 'success')
+            return redirect(url_for('dashboard'))
+            
+        except json.JSONDecodeError as e:
             os.remove(filepath)
-            flash('Ошибка: Некорректный JSON формат.', 'danger')
+            flash(f'Ошибка: {e}', 'danger')
         except Exception as e:
             os.remove(filepath)
             flash(f'Произошла ошибка при обработке файла: {e}', 'danger')

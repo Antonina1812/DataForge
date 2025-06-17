@@ -2,13 +2,12 @@ import uuid
 import pandas as pd
 from dash import dcc, html, Input, Output, State, ctx, ALL, no_update
 import dash_bootstrap_components as dbc
-import dash_draggable as dg
-from flask import current_app
+from app import app
 from .data_manager import DataManager
 from .chart_factory import ChartFactory
-from dash.exceptions import PreventUpdate
 
-dm = DataManager()
+
+dm = DataManager(app.config.get('UPLOAD_FOLDER'))
 
 def register_callbacks(app):
     @app.callback(
@@ -178,57 +177,12 @@ def register_callbacks(app):
             return dbc.Alert("Please select a file first", color="danger", duration=3000)
         return no_update
    
-
     @app.callback(
-        Output("file-metrics", "children"),
-        Output("metrics-section", "style"),
-        Input("stored-data", "data"),
-        prevent_initial_call=True
+        Output("navbar-collapse", "is_open"),
+        Input("navbar-toggler", "n_clicks"),
+        State("navbar-collapse", "is_open")
     )
-    def update_metrics(records):
-        if not records:
-            return no_update, no_update
-        
-        try:
-            df = pd.DataFrame(records)
-            metrics = dm._calculate_metrics(df)
-            
-            # Форматируем метрики для отображения
-            metrics_output = []
-            for col, col_metrics in metrics.items():
-                metrics_output.append(html.H5(col, className="mt-3"))
-                
-                if 'mean' in col_metrics:  # Числовые колонки
-                    metrics_output.append(html.Div([
-                        html.P(f"Count: {col_metrics['count']}"),
-                        html.P(f"Mean: {col_metrics['mean']:.2f}"),
-                        html.P(f"Std: {col_metrics['std']:.2f}"),
-                        html.P(f"Min: {col_metrics['min']}"),
-                        html.P(f"25%: {col_metrics['25%']}"),
-                        html.P(f"50%: {col_metrics['50%']}"),
-                        html.P(f"75%: {col_metrics['75%']}"),
-                        html.P(f"Max: {col_metrics['max']}"),
-                        html.P(f"Missing: {col_metrics['missing']}"),
-                        html.P(f"Skewness: {col_metrics['skewness']:.2f}"),
-                        html.P(f"Kurtosis: {col_metrics['kurtosis']:.2f}"),
-                        html.Details([
-                            html.Summary("Correlations"),
-                            html.Ul([
-                                html.Li(f"{k}: {v:.2f}")
-                                for k, v in col_metrics['correlation'].items()
-                            ])
-                        ])
-                    ]))
-                else:  # Строковые колонки
-                    metrics_output.append(html.Div([
-                        html.P(f"Count: {col_metrics['count']}"),
-                        html.P(f"Unique: {col_metrics['unique']}"),
-                        html.P(f"Top: {col_metrics['top']}"),
-                        html.P(f"Freq: {col_metrics['freq']}"),
-                        html.P(f"Missing: {col_metrics['missing']}")
-                    ]))
-            
-            return metrics_output, {"display": "block"}
-        
-        except Exception as e:
-            return dbc.Alert(f"Error calculating metrics: {str(e)}", color="danger"), {"display": "block"}
+    def toggle_nav(n, is_open):
+        if n:
+            return not is_open
+        return is_open
