@@ -224,39 +224,48 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // 9. При клике «Отправить» собираем данные и выводим в консоль
-  submitButton.addEventListener('click', async () => {
-    const count  = parseInt(document.getElementById('mockCount').value, 10) || 0;
+  submitButton.addEventListener('click', function() {
+    const mockCount = document.getElementById('mockCount').value;
     const fields = collectFieldsData();
-    if (!fields.length) {
-      alert('Добавьте хотя бы одно поле');
-      return;
+
+    if (!fields || fields.length === 0) {
+        alert('Пожалуйста, добавьте хотя бы одно поле');
+        return;
     }
 
-    const payload   = { count, fields };
+    const jsonData = { count: parseInt(mockCount, 10), fields: fields };
     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
-    try {
-      const resp = await fetch('/api/process_mock', {
+    fetch('/mock_generator', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
         },
-        body: JSON.stringify(payload)
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || 'Сервер вернул ошибку');
-      }
-
-      console.log('Результат обработки:', data.result);
-      // Сохраняем и переходим в Dash
-      localStorage.setItem('matrix_stats', JSON.stringify(data.result));
-      window.location.href = '/dashboard?job=mock';
-
-    } catch (err) {
-      console.error(err);
-      alert('Ошибка при отправке: ' + err.message);
-    }
-  });
+        body: JSON.stringify(jsonData),
+    })
+    .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Ошибка сервера');
+        }
+        
+        // Обрабатываем разные форматы ответа
+        let mockData;
+        if (data.mockData) {
+            mockData = data.mockData;
+        } else if (data.data) {
+            mockData = JSON.stringify(data.data);
+        } else {
+            throw new Error('Неверный формат ответа от сервера');
+        }
+        
+        const encodedData = encodeURIComponent(mockData);
+        window.location.href = `/mock_result?data=${encodedData}`;
+    })
+    .catch((error) => {
+        console.error('Ошибка:', error);
+        alert(error.message || 'Произошла ошибка при отправке данных.');
+    });
+});
 });

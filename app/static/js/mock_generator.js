@@ -215,13 +215,15 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // 9. При клике «Отправить» собираем данные и выводим в консоль
-  submitButton.addEventListener('click', function () {
+  submitButton.addEventListener('click', function() {
     const mockCount = document.getElementById('mockCount').value;
     const fields = collectFieldsData();
+
     if (!fields || fields.length === 0) {
-      alert('Пожалуйста, добавьте хотя бы одно поле');
-      return;
+        alert('Пожалуйста, добавьте хотя бы одно поле');
+        return;
     }
+
     const jsonData = { count: parseInt(mockCount, 10), fields: fields };
     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
@@ -234,23 +236,27 @@ document.addEventListener('DOMContentLoaded', function () {
         body: JSON.stringify(jsonData),
     })
     .then(async (response) => {
-      const data = await response.json();
-      if (!response.ok) {
-          throw new Error(data.error || 'Ошибка сервера');
-      }
-        return data;
-    })
-    .then((data) => {
-        if (data.success) {
-            const encodedData = encodeURIComponent(data.mockData);
-            window.location.href = `/mock_result?data=${encodedData}`;
-        } else {
-            alert(data.error || "Ошибка при генерации mock-объектов.");
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Ошибка сервера');
         }
+        
+        // Обрабатываем разные форматы ответа
+        let mockData;
+        if (data.mockData) {
+            mockData = data.mockData;
+        } else if (data.data) {
+            mockData = JSON.stringify(data.data);
+        } else {
+            throw new Error('Неверный формат ответа от сервера');
+        }
+        
+        const encodedData = encodeURIComponent(mockData);
+        window.location.href = `/mock_result?data=${encodedData}`;
     })
     .catch((error) => {
         console.error('Ошибка:', error);
         alert(error.message || 'Произошла ошибка при отправке данных.');
     });
-  });
+});
 });
