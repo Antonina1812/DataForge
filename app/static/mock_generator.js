@@ -151,16 +151,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const fields = [];
 
     fieldSections.forEach((section) => {
-      const fieldName = section.querySelector('.field-name').value.trim() || null;
-      const fieldType = section.querySelector('.field-type-select').value;
-      const description = section.querySelector('.description').value.trim() || null;
-      const constraints = getConstraints(section, fieldType);
+        const fieldName = section.querySelector('.field-name').value.trim() || null;
+        const fieldType = section.querySelector('.field-type-select').value;
+        const description = section.querySelector('.description').value.trim() || null;
+        const constraints = getConstraints(section, fieldType);
 
-      fields.push({ fieldName, fieldType, description, constraints });
+        fields.push({ 
+            fieldName, 
+            fieldType, 
+            description, 
+            constraints 
+        });
     });
 
     return fields;
-  }
+}
 
   // 8. Функция для получения ограничений в зависимости от типа
   function getConstraints(section, type) {

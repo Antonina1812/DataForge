@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, make_response, current_app, send_from_directory, session, abort, jsonify
+from flask import render_template, redirect, url_for, flash, request, make_response, current_app, send_from_directory, session, abort, jsonify, json
 from app import app, db
 from app.forms import RegistrationForm, LoginForm, UploadForm
 from app.models import User, Dataset
@@ -13,6 +13,22 @@ import re
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+@app.template_filter('parse_json')
+def parse_json_filter(data):
+    """Фильтр для парсинга JSON строки в объект Python"""
+    try:
+        return json.loads(data)
+    except (TypeError, json.JSONDecodeError):
+        return data
+    
+@app.template_filter('from_json')
+def from_json_filter(data):
+    """Фильтр для преобразования JSON строки в объект Python"""
+    try:
+        return json.loads(data)
+    except (TypeError, json.JSONDecodeError):
+        return data
 
 def save_mock_data(mock_data):
     """Безопасное сохранение mock-данных"""
@@ -307,141 +323,58 @@ def delete_file(file_id):
 def mock_generator():
     if request.method == 'POST':
         try:
-            # 1. Получаем и проверяем данные
             data = request.get_json()
             if not data:
                 return {"error": "No data provided"}, 400
 
             count = int(data.get('count', 1))
             fields = data.get('fields', [])
-            
-            # 2. Подготовка запроса
-            headers = {
-                "Authorization": f"Bearer {current_app.config['OPENROUTER_API_KEY']}",
-                "HTTP-Referer": request.host_url,
-                "X-Title": "DataForge",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": "anthropic/claude-3-haiku",
-                "messages": [{
-                    "role": "user",
-                    "content": f"Generate {count} JSON objects with these fields: {json.dumps(fields)}. Return ONLY valid JSON array in response."
-                }],
-                "max_tokens": 2000,
-                "response_format": {"type": "json_object"}
-            }
 
-            # 3. Отправка запроса с таймаутом
-            response = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-
-            # 4. Проверка ответа
-            if not response.text:
-                raise ValueError("Empty response from API")
-
-            try:
-                result = response.json()
-            except json.JSONDecodeError:
-                raise ValueError(f"Invalid JSON: {response.text[:200]}")
-
-            # 5. Извлечение данных
-            if 'choices' not in result or not result['choices']:
-                raise ValueError("Invalid response format - no choices")
-
-            content = result['choices'][0]['message']['content']
-            
-            try:
-                # Пытаемся распарсить как JSON
-                mock_data = json.loads(content)
+            # Генерируем mock-данные в требуемом формате
+            mock_objects = []
+            for _ in range(count):
+                mock_object = []
+                for field in fields:
+                    if not isinstance(field, dict):
+                        continue
+                        
+                    # Создаем объект с описанием поля
+                    field_description = {
+                        "fieldName": field.get('fieldName'),
+                        "fieldType": field.get('fieldType', 'string'),
+                        "description": field.get('description'),
+                        "constraints": field.get('constraints', {})
+                    }
+                    mock_object.append(field_description)
                 
-                # Если это словарь с ключом 'mockData', извлекаем его
-                if isinstance(mock_data, dict) and 'mockData' in mock_data:
-                    mock_data = mock_data['mockData']
-                
-                # Проверяем, что получили массив объектов
-                if not isinstance(mock_data, list):
-                    mock_data = [mock_data]
-                    
-            except json.JSONDecodeError:
-                # Попробуем извлечь JSON из текста
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
-                if json_match:
-                    mock_data = json.loads(json_match.group())
-                else:
-                    raise ValueError("No valid JSON found in response")
+                if mock_object:
+                    mock_objects.append(mock_object)
 
-            # 6. Сохранение результата
+            if not mock_objects:
+                return jsonify({
+                    "success": False,
+                    "error": "No valid fields to generate"
+                }), 400
+            
+            # Сохраняем результат
             filename = f"mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             
             with open(filepath, 'w') as f:
-                json.dump(mock_data, f, indent=2)
+                json.dump(mock_objects, f, indent=2)
                 
-            # 7. Возвращаем ответ в ожидаемом формате
+            # Возвращаем ответ
             return jsonify({
                 "success": True,
-                "mockData": json.dumps(mock_data, ensure_ascii=False)
+                "mockData": json.dumps(mock_objects, ensure_ascii=False)
             })
 
         except Exception as e:
             current_app.logger.error(f"Generation error: {str(e)}")
-            
-            # Fallback: попробуем сгенерировать данные локально
-            try:
-                mock_objects = []
-                for _ in range(count):
-                    mock_object = {}
-                    for field in fields:
-                        if not isinstance(field, dict):
-                            continue
-                            
-                        field_name = field.get('fieldName')
-                        if not field_name:
-                            continue
-                            
-                        field_type = field.get('fieldType', 'string')
-                        constraints = field.get('constraints', {}) or {}
-                        
-                        try:
-                            if field_type == 'string':
-                                mock_object[field_name] = generate_string(constraints)
-                            elif field_type == 'number':
-                                mock_object[field_name] = generate_number(constraints)
-                            elif field_type == 'boolean':
-                                mock_object[field_name] = random.choice([True, False])
-                            elif field_type == 'array':
-                                mock_object[field_name] = generate_array(constraints)
-                            elif field_type == 'date':
-                                mock_object[field_name] = datetime.now().strftime('%Y-%m-%d')
-                        except Exception as gen_error:
-                            print(f"Error generating field {field_name}: {str(gen_error)}")
-                            mock_object[field_name] = None
-                    
-                    if mock_object:
-                        mock_objects.append(mock_object)
-                
-                if not mock_objects:
-                    return jsonify({
-                        "success": False,
-                        "error": "No valid fields to generate"
-                    }), 400
-                
-                return jsonify({
-                    "success": True,
-                    "mockData": json.dumps(mock_objects, ensure_ascii=False, indent=2)
-                })
-                
-            except Exception as fallback_error:
-                return jsonify({
-                    "success": False,
-                    "error": f"API and fallback failed: {str(e)} | {str(fallback_error)}"
-                }), 500
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 500
 
     return render_template('mock_generator.html')
 

@@ -14,6 +14,10 @@ migrate = Migrate(app, db)
 csrf = CSRFProtect(app) # Эта строчка нужна для безопасности, с ней ничего делать не нужно
 csrf._exempt_views.add('dash.dash.dispatch')
 
+from .routes import parse_json_filter, from_json_filter
+app.jinja_env.filters['parse_json'] = parse_json_filter
+app.jinja_env.filters['from_json'] = from_json_filter
+
 # Создаем папку для загрузок при старте приложения
 with app.app_context():
     upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')

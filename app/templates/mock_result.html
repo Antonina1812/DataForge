@@ -17,7 +17,17 @@
     
     <div class="card">
         <div class="card-body">
-            <pre>{{ mock_data }}</pre>
+            {% if mock_data %}
+                {% set data = mock_data|parse_json %}
+                {% for item in data %}
+                    <div class="mb-4">
+                        <h5>Mock-объект {{ loop.index }}</h5>
+                        <pre>{{ item|tojson(indent=2) }}</pre>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Нет данных для отображения</p>
+            {% endif %}
         </div>
     </div>
 </div>
