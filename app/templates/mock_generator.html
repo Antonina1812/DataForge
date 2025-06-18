@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Генерация Mock{% endblock %}
+{% block content %}
+{% macro constraint_block(type) %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="constraints-{{ type }}" style="display: none;">
+    {% if type == 'string' %}
+        {{ input("Минимальная длина", "number", "min-length") }}
+        {{ input("Максимальная длина", "number", "max-length") }}
+        {{ input("Шаблон", "text", "pattern", "например, ^[a-zA-Z0-9]+$") }}
+        {{ input("Enum (через запятую)", "text", "enum", "например, val1,val2,val3") }}
+    {% elif type == 'number' %}
+        {{ input("Минимум", "number", "minimum") }}
+        {{ input("Максимум", "number", "maximum") }}
+        {{ input("Enum (через запятую)", "text", "enum", "например, 1,2,3") }}
+    {% elif type == 'array' %}
+        {{ input("Enum (через запятую)", "text", "enum", "например, val1,val2,val3") }}
+        <div class="mb-3">
+            <label class="form-label">Тип элементов</label>
+            <select class="form-select items-type">
+                {% for item_type in ['string', 'number', 'boolean', 'object', 'array', 'date'] %}
+                    <option value="{{ item_type }}">{{ item_type|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Свойства элементов (JSON)</label>
+            <textarea class="form-control items-properties" placeholder='например, {"key":"value"}'></textarea>
+        </div>
+    {% elif type == 'date' %}
+        {{ input("Минимальная дата", "date", "minimum") }}
+        {{ input("Максимальная дата", "date", "maximum") }}
+        {{ input("Формат даты", "text", "date-format", "например, YYYY-MM-DD") }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro input(label, type, class_name, placeholder="") %}
+<div class="mb-3">
+    <label class="form-label">{{ label }}</label>
+    <input type="{{ type }}" class="form-control {{ class_name }}" placeholder="{{ placeholder }}">
+</div>
+{% endmacro %}
+
+{% macro field_section(index) %}
+<div class="field-section mb-4">
+    <div class="accordion" id="accordionField{{ index }}">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingField{{ index }}">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseField{{ index }}" aria-expanded="true" aria-controls="collapseField{{ index }}">
+                    Поле {{ index }}
+                </button>
+            </h2>
+            <div id="collapseField{{ index }}" class="accordion-collapse collapse show" aria-labelledby="headingField{{ index }}" data-bs-parent="#accordionField{{ index }}">
+                <div class="accordion-body">
+                    {{ input("Имя поля", "text", "field-name", "например, username") }}
+                    <div class="mb-3">
+                        <label class="form-label">Тип поля</label>
+                        <select class="form-select field-type-select">
+                            {% for t in ['string', 'number', 'boolean', 'array', 'date'] %}
+                                <option value="{{ t }}" {% if loop.first %}selected{% endif %}>{{ t|capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {{ input("Описание", "text", "description") }}
+
+                    {# Constraints blocks #}
+                    {% for t in ['string', 'number', 'boolean', 'array', 'date'] %}
+                        {{ constraint_block(t) }}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-danger delete-field mt-2">Удалить поле</button>
+    <button class="btn btn-secondary clear-field mt-2 ms-2">Очистить</button>
+    <hr />
+</div>
+{% endmacro %}
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Форма для мок-объектов</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+<div class="container mt-5">
+    <h2>Форма для мок-объектов</h2>
+    <div class="mb-3">
+        <label for="mockCount" class="form-label">Количество мок-объектов</label>
+        <input type="number" class="form-control" id="mockCount" value="1" min="1" />
+    </div>
+
+    <div id="fieldsContainer">
+        {{ field_section(1) }}
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <button id="addFieldButton" class="btn btn-secondary" type="button">Добавить поле</button>
+        <button id="clearButton" class="btn btn-warning" type="button">Очистить всю форму</button>
+        <button id="submitButton" class="btn btn-primary" type="button">Отправить</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../static/js/mock_generator.js"></script>
+</body>
+</html>
+{% endblock %}

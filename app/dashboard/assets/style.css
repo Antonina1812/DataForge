@@ -1,0 +1,135 @@
+:root {
+  --dropdown-bg: #c0c0c0;
+  --dropdown-border: #000000;
+  --dropdown-text: #000000;
+  --dropdown-placeholder: #000000;
+  --dropdown-hover: #428cfa;
+  --dropdown-selected: #428cfa;
+  --dropdown-focus-shadow: rgba(13, 110, 253, 0.25);
+}
+
+/* Применение переменных */
+.dash-dropdown {
+  width: 100%;
+}
+
+/**/
+.dash-dropdown .Select-control {
+  background-color: var(--dropdown-bg);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 0.375rem;
+  min-height: calc(1.5em + 0.75rem + 2px);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/**/
+.dash-dropdown .Select-value-label {
+  color: var(--dropdown-text);
+  line-height: 1.5;
+}
+
+/**/
+.dash-dropdown .Select-placeholder {
+  color: var(--dropdown-placeholder);
+  line-height: 1.5;
+}
+
+.dash-dropdown .Select-menu-outer {
+  background-color: var(--dropdown-bg);
+  border: 1px solid var(--dropdown-border);
+  border-top: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+}
+
+/* Опции в выпадающем списке */
+.dash-dropdown .Select-option {
+  background-color: var(--dropdown-bg);
+  color: var(--dropdown-text);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover эффект */
+.dash-dropdown .Select-option.is-focused,
+.dash-dropdown .Select-option:hover {
+  background-color: var(--dropdown-hover);
+  color: var(--dropdown-text);
+}
+
+/* Выбранная опция */
+.dash-dropdown .Select-option.is-selected {
+  background-color: var(--dropdown-selected);
+  color: #ffffff;
+}
+
+/* Для виртуализированных списков (если у вас много опций) */
+.dash-dropdown .VirtualizedSelectOption {
+  background-color: var(--dropdown-bg);
+  color: var(--dropdown-text);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dash-dropdown .VirtualizedSelectOption.VirtualizedSelectFocusedOption {
+  background-color: var(--dropdown-hover);
+  color: var(--dropdown-text);
+}
+
+.dash-dropdown .VirtualizedSelectOption.VirtualizedSelectSelectedOption {
+  background-color: var(--dropdown-selected);
+  color: #ffffff;
+}
+
+/* Убедимся, что текст виден везде */
+.dash-dropdown .Select-menu-outer * {
+  color: var(--dropdown-text);
+}
+
+/* Стрелка dropdown */
+.dash-dropdown .Select-arrow-zone {
+  color: var(--dropdown-text);
+}
+
+/* Крестик очистки */
+.dash-dropdown .Select-clear-zone {
+  color: var(--dropdown-text);
+}
+
+.dash-dropdown .Select-clear-zone:hover {
+  color: var(--dropdown-hover);
+}
+
+/* Стили для карточек с графиками */
+.react-grid-item {
+  background: rgb(45, 53, 133);
+  border: 2px solid #000000;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.react-grid-item:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: #007bff;
+}
+
+/* Стили для графиков внутри карточек */
+.react-grid-item .js-plotly-plot {
+  padding: 1rem;
+  height: 100%;
+  width: 100%;
+}
+
+/* Ручка для перетаскивания */
+.react-grid-item .react-grid-dragHandleExample {
+  cursor: move;
+  background: #565555;
+  border-bottom: 1px solid #000000;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
